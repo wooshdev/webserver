@@ -26,7 +26,7 @@ socket_t server_create_socket(uint16_t port) {
 
 	if (bind(created_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("Server: Unable to bind");
-		printf("Server: Port: %uhi\n", port);
+		printf("Server: Port: %hu\n", port);
 		exit(EXIT_FAILURE);
 	}
 

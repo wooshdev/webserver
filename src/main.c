@@ -58,7 +58,13 @@ int main(int argc, char **argv) {
 	if (argv != NULL) {
 		config_t config = config_read("test.ini");
 		
-		printf("chain: %s\n", config_get(config, "chain"));
+		if (config_validate(config))
+			puts("configuration is valid.\n");
+		else
+			puts("configuration isn't valid. see above\n");
+
+		printf("port=%hu\n", (uint16_t)strtoul(config_get(config, "port"), NULL, 0));
+		printf("cert-chain: %s\n", config_get(config, "cert-chain"));
 		
 		config_destroy(config);
 		return EXIT_SUCCESS;

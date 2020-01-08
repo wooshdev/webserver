@@ -15,12 +15,15 @@ typedef struct config_t {
 	char **values;
 } config_t;
 
-/** things implemented by reader.c: **/
+/** Things implemented by reader.c: **/
 /* Reads the supplied file */
 config_t config_read(const char *file_name);
 /* Destroys and frees the data inside the config. After calling this function, the config is deemed invalid. */
 void config_destroy(config_t config);
 /* Gets the value in the config, but returns NULL if the key doesn't exists. */
 const char *config_get(config_t config, const char *key);
+
+/** Things implemented by validator.c: **/
+int config_validate(config_t config);
 
 #endif /* CONFIG_H */
