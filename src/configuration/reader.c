@@ -9,68 +9,80 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define CONFIG_CHUCK_SIZE		256
 #define CONFIG_INITIAL_SIZE 8
 #define CONFIG_STEP_SIZE		8
 
 config_t config_read(const char *file_name) {
 	config_t config = { 0 };
-	
+
 	size_t current_size = CONFIG_INITIAL_SIZE;
 	config.count = 0;
 	config.keys = malloc(current_size * sizeof(const char *));
 	config.values = malloc(current_size * sizeof(const char *));
-	
+
 	FILE *fp = fopen(file_name, "r");
-	
+
 	if (!fp) {
 		perror("Config: failed to read");
 		printf("Config: filename='%s'\n", file_name);
 		exit(EXIT_FAILURE);
 	}
-	
-	char chunk[128];
-	
+
+	char chunk[CONFIG_CHUCK_SIZE];
+
 	size_t line_i = 0;
 	while (fgets(chunk, sizeof(chunk), fp) != NULL) {
 		line_i++;
 		/* remove LF and get length */
 		size_t length = strlen(chunk)-1;
 		chunk[length] = 0;
-		
+
 		/* don't parse empty lines, there is no point */
 		if (length == 0)
 			continue;
-		
+
+		/* find the first comment character in the string and end the string there. this effectively 'removes' comments from lines. */
+		char *occurrence_comment = strchr(chunk, ';');
+		if (occurrence_comment) {
+			*occurrence_comment = '\0';
+			length = occurrence_comment - chunk;
+		}
+
+		/* don't parse empty lines, there is no point */
+		if (length == 0)
+			continue;
+
 		const char *occurrence = strchr(chunk, '=');
 		/* the line doesn't contain a EQUALS_SIGN */
 		if (!occurrence) {
 			printf("[Config] [Warning] Unable to parse line: '%s' (line number: %zi, length: %zi)\n", chunk, line_i, length);
 			continue;
 		}
-		
+
 		/* resize the arrays if needed */
 		if (config.count == current_size) {
 			current_size += CONFIG_STEP_SIZE;
 			config.keys = realloc(config.keys, current_size * sizeof(const char *));
 			config.values = realloc(config.values, current_size * sizeof(const char *));
 		}
-		
+
 		size_t key_size = occurrence - chunk;
 		char *key = malloc((key_size + 1) * sizeof(char));
 		memcpy(key, chunk, key_size);
 		key[key_size] = '\0';
-		
+
 		size_t value_size = chunk-occurrence+length;
 		char *value = malloc((value_size + 1) * sizeof(char));
 		memcpy(value, occurrence+1, value_size);
 		value[value_size] = '\0';
-		
+
 		config.keys[config.count] = key;
 		config.values[config.count] = value;
-		
+
 		config.count++;
 	}
-	
+
 	fclose(fp);
 	
 	return config;
@@ -87,7 +99,7 @@ const char *config_get(config_t config, const char *key) {
 	
 	size_t i;
 	for (i = 0; i < config.count; i++) {
-		if (strcmp(key, config.keys[i]) == 0) {
+		if (!strcmp(key, config.keys[i])) {
 			return config.values[i];
 		}
 	}

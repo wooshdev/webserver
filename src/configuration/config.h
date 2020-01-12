@@ -2,7 +2,8 @@
  * Copyright (C) 2019-2020 Tristan
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  *
- * This project is configured using a very bare-bones INI file. It doesn't support sections, for example. Also, lines shouldn't be more than 128 characters long
+ * This project is configured using a very bare-bones INI file.
+ * It doesn't support sections, for example. Also, lines shouldn't be more than 128 characters long.
  */
 #ifndef CONFIG_H
 #define CONFIG_H
