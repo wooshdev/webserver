@@ -13,7 +13,7 @@
 #include "configuration/config.h"
 #include "utils/util.h"
 #include "utils/fileutil.h"
-#include "utils/tlsutil.h"
+#include "secure/tlsutil.h"
 
 int main(int argc, char **argv) {
 	config_t config = config_read("test.ini");

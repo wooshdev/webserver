@@ -11,12 +11,12 @@ LDFLAGS = -pthread `pkg-config --static --libs openssl`
 CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
-SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/implopenssl.o
+SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
 	$(CC) $(CFLAGS) -o $@ $< $(SUBBINARIES) $(LDFLAGS)
 bin/build.txt: # a hack to create the bin folder only once
-	mkdir bin
+	mkdir -p bin/secure
 	touch bin/build.txt
 bin/config_reader.o: src/configuration/reader.c src/configuration/config.h
 	$(CC) -o $@ -c $(CFLAGS) $<
@@ -28,7 +28,7 @@ bin/util.o: src/utils/util.c src/utils/util.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/server.o: src/server.c src/server.h
 	$(CC) -o $@ -c $(CFLAGS) $<
-bin/implopenssl.o: src/utils/impl/implopenssl.c src/utils/tlsutil.h bin/file_util.o
+bin/secure/implopenssl.o: src/secure/impl/implopenssl.c src/secure/tlsutil.h bin/file_util.o
 	$(CC) -o $@ -c $(CFLAGS) $< $(LDFLAGS)
 memtest:
 	valgrind --leak-check=full \
