@@ -1,3 +1,7 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ */
 #include "../tlsutil.h"
 
 #include <openssl/ssl.h>
@@ -8,7 +12,7 @@ SSL_CTX *ctx;
 int tls_setup(secure_config_t *sconfig) {
 	SSL_load_error_strings();
 	OpenSSL_add_ssl_algorithms();
-	
+
 	const SSL_METHOD *method;
 
 	method =  SSLv23_server_method();
@@ -19,7 +23,7 @@ int tls_setup(secure_config_t *sconfig) {
 		ERR_print_errors_fp(stderr);
 		return 0;
 	}
-	
+
 	SSL_CTX_set_ecdh_auto(ctx, 1);
 
 	/* Set the key and cert */
@@ -37,7 +41,26 @@ int tls_setup(secure_config_t *sconfig) {
 		ERR_print_errors_fp(stderr);
 		return 0;
 	}*/
-	
+
+	if (sconfig->chain) {
+		BIO *bio = BIO_new(BIO_s_mem());
+		X509 *cert = X509_new();
+		/*bio = BIO_new_mem_buf(certData, -1);*/
+		if (!BIO_read_filename(bio, sconfig->chain))
+			perror("chain read failure");
+		PEM_read_bio_X509(bio, &cert, 0, NULL);
+
+		if (!cert) {
+        	puts("Failed to load chain");
+		}
+
+		if (bio) {
+			BIO_free(bio);
+		}
+
+		SSL_CTX_add1_chain_cert(ctx, cert);
+	}
+
 	const char *names[] = { "TLS 1.0", "TLS 1.1", "TLS 1.2", "TLS 1.3", "TLS 1.4" };
 	
 	if (sconfig->min_protocol_version != PROTOCOL_NULL) {
