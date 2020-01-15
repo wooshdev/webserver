@@ -8,6 +8,7 @@
 #define HTTP_PARSER_H
 
 #include "../secure/tlsutil.h"
+#include "common.h"
 
 /**
  * Description:
@@ -45,5 +46,19 @@ int http_parser_setup();
  *    1 success
  */
 int http_parse_method(TLS, char *, size_t);
+
+/**
+ * Description:
+ *   This function will parse the headers from the source.
+ * 
+ * Parameters:
+ *   TLS
+ *     The TLS source to be read from.
+ * 
+ * Return value:
+ *   http_headers_t
+ *     The headers map.
+ */
+http_headers_t http_parse_headers(TLS);
 
 #endif /* HTTP_PARSER_H */

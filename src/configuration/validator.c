@@ -13,7 +13,7 @@
 #include <string.h>
 
 int config_validate(config_t config) {
-	const char *required_keys[] = { "port", "tls-mode" };
+	const char *required_keys[] = { "port", "tls-mode", "hostname" };
 
 	size_t i;
 	for (i = 0; i < sizeof(required_keys) / sizeof(required_keys[0]); i++) {

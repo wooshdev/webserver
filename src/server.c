@@ -23,6 +23,10 @@ socket_t server_create_socket(uint16_t port) {
 		perror("Server: Unable to create socket!");
 		exit(EXIT_FAILURE);
 	}
+  
+  int enable = 1;
+  if (setsockopt(created_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    perror("Server: Failed to set SO_REUSEADDR option.");
 
 	if (bind(created_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("Server: Unable to bind");

@@ -17,6 +17,7 @@
 
 /* Defined by the application*/
 extern char http_header_server_name[128];
+extern char http_host[128];
 
 /**
  * Description:
@@ -26,6 +27,7 @@ extern char http_header_server_name[128];
  *   (boolean)
  */
 int http_headers_strict;
+int http_host_strict;
 
 typedef enum HTTP_ERROR {
 	/* The method the client specified was:
@@ -40,7 +42,11 @@ typedef enum HTTP_ERROR {
 	 * 1. Invalid as string (too long, I/O, etc)
 	 * 2. Not equal to 'HTTP/1.1'
 	 */
-	HTTP_ERROR_INVALID_VERSION = 0x02
+	HTTP_ERROR_INVALID_VERSION = 0x02,
+	/**
+	 * The host is not equal to the one defined in the configuration, and hostname-strict is set to true.
+	 */
+	HTTP_ERROR_INVALID_HOST = 0x03
 } HTTP_ERROR;
 
 typedef enum HTTP_HEADER_PARSE_ERROR {
@@ -76,20 +82,6 @@ typedef struct http_headers_t {
  *     (boolean) 0 for 'Connection' header to be 'close', otherwise 'keep-alive'.
  */
 void http_handle_error_gracefully(TLS, HTTP_ERROR, const char *, int);
-
-/**
- * Description:
- *   This function will parse the headers from the source.
- * 
- * Parameters:
- *   TLS
- *     The TLS source to be read from.
- * 
- * Return value:
- *   http_headers_t
- *     The headers map.
- */
-http_headers_t http_parse_headers(TLS);
 /**
  * Description:
  *   This function will destroy any date from the map.
@@ -99,6 +91,24 @@ http_headers_t http_parse_headers(TLS);
  *     The headers to be destroyed.
  */
 void http_destroy_headers(http_headers_t);
+
+/**
+ * Description:
+ *   Gets the value of the header.
+ * 
+ * Notes:
+ *   The key should be lowercased
+ * 
+ * Parameters:
+ *   http_headers_t
+ *     The header map.
+ *   const char *
+ *     The header key.
+ *
+ * Return Value:
+ *   A valid string, or NULL if the header wasn't found.
+ */
+const char *http_get_header(http_headers_t, const char *);
 
 #endif /* HTTP_COMMON_H */
  

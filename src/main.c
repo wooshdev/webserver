@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
 
 #include "server.h"
 #include "configuration/config.h"
@@ -19,15 +20,35 @@
 #include "utils/io.h"
 
 const char *default_server_name = "wss";
+static int socket_initialized = 0;
+static int sock;
+
+static void catch_signal(int signo, siginfo_t *info, void *context) {
+  if (socket_initialized) {
+    close(sock);
+  }
+}
 
 int main(int argc, char **argv) {
+  struct sigaction act;
+  memset(&act, 0, sizeof(struct sigaction));
+	sigemptyset(&act.sa_mask);
+  
+	act.sa_sigaction = catch_signal;
+	act.sa_flags = SA_SIGINFO;
+  
+  if (-1 == sigaction(SIGINT, &act, NULL)) {
+    fputs("Failed to set signal handler!\n", stderr);
+    perror("info");
+		exit(EXIT_FAILURE);
+	}
+  
 	if (!http_parser_setup()) {
 		puts("Failed to setup HTTP parser!");
 		return EXIT_FAILURE;
 	}
 	
 	config_t config = config_read("test.ini");
-
 	if (!config_validate(config)) {
 		puts("[Config] Invalid configuration.\nQuitting!");
 		return EXIT_FAILURE;
@@ -35,7 +56,10 @@ int main(int argc, char **argv) {
 	
 	/* set the http/common.h server name field, which should be used as the 'Server' header value.*/
 	strcpy(http_header_server_name, config_get_default(config, "server-name", default_server_name));
+	strcpy(http_host, config_get(config, "hostname"));
 	http_headers_strict = config_get_bool(config, "headers-strict", 0);
+	
+	http_host_strict = config_get_bool(config, "hostname-strict", 0);
 
 	secure_config_t *sconfig;
 	const char *options[] = { "letsencrypt", "manual" };
@@ -55,7 +79,8 @@ int main(int argc, char **argv) {
 
 	tls_setup(sconfig);
 	
-	int sock = server_create_socket((uint16_t)strtoul(config_get(config, "port"), NULL, 0));
+	sock = server_create_socket((uint16_t)strtoul(config_get(config, "port"), NULL, 0));
+  socket_initialized = 1;
 	
 	/* post-init: */
 	free(sconfig);
@@ -70,7 +95,7 @@ int main(int argc, char **argv) {
 
 		int client = accept(sock, (struct sockaddr*)&addr, &len);
 		if (client < 0) {
-			perror("Unable to accept");
+			perror("Client acceptance failure");
 			exit(EXIT_FAILURE);
 		}
 		
@@ -103,7 +128,24 @@ int main(int argc, char **argv) {
 				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, version, 0);
 				goto clean;
 			}
+      
+      /* remove the last '\n' character from the stream */
+      char end_character[1];
+      tls_read_client(tls, end_character, 1);
+      
+      http_headers_t headers = http_parse_headers(tls);
+      printf("header_error=%i\n", headers.error);
+      
+			printf("host got=%s shouldbe=%s\n", http_get_header(headers, "host"), http_host);
 			
+			const char *hostv;
+			if (http_host_strict && (hostv = http_get_header(headers, "host")) && strcmp(http_host, hostv)) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, version, 0);
+				goto clean;
+			}
+			
+			http_destroy_headers(headers);
+      
 			puts("> Parse Success");
 			const char *reply = "HTTP/1.1 200 OK\r\nServer: wss\r\nConnection: close\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\nStill working pls wait.";
 			tls_write_client(tls, reply, strlen(reply));

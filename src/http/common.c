@@ -15,13 +15,15 @@
 #define DATE_FORMATTED_SIZE 64
 
 char http_header_server_name[128];
+char http_host[128];
 
-static const char *error_statuses[] = { "405 Method Not Allowed", "414 URI Too Long", "505 HTTP Version Not Supported" };
+static const char *error_statuses[] = { "405 Method Not Allowed", "414 URI Too Long", "505 HTTP Version Not Supported", "400 Bad Request" };
 #define _MALFORMEDREQ "<h1>Your browser has sent a malformed request.</h1><hr><p>"
 static const char *error_bodies[] = { 
 	_MALFORMEDREQ"We can't support the sent <b>method</b> your browser wants to use.</p>", 
 	_MALFORMEDREQ"We can't handle the <b>path</b> your browser sent us.</p>",
-	_MALFORMEDREQ"We don't support the <b>version</b> your browser uses.</p>"
+	_MALFORMEDREQ"We don't support the <b>version</b> your browser uses.</p>",
+	_MALFORMEDREQ"The <b>host name</b> your browser has sent is incorrect.</p>"
 };
 
 static const char *supported_methods = "GET";
@@ -39,32 +41,6 @@ static char *get_date() {
     result[size] = '\0';
 
     return result;
-}
-
-http_headers_t http_parse_headers(TLS tls) {
-	http_headers_t headers = { 0 };
-	
-	char key_buffer[HTTP_HEADERS_KEY_MAX_LENGTH];
-	char value_buffer[HTTP_HEADERS_VALUE_MAX_LENGTH];
-	
-	int read;
-	while ((read = io_read_until(tls, key_buffer, ':', HTTP_HEADERS_KEY_MAX_LENGTH)) > 0) {
-		key_buffer[read-1] = 0; /* remove the last char; ':' */
-		
-		char *key = malloc(sizeof(char) * (read + 1));
-		key[read] = 0; /* NULL-terminate */
-		strcpy(key, key_buffer);
-		
-		if ((read = io_read_until(tls, value_buffer, ':', HTTP_HEADERS_VALUE_MAX_LENGTH)) <= 0) {
-			/* error */
-			headers.error = HTTP_HEADER_PARSE_ERROR_MAX;
-			return headers;
-		}
-		printf(key);
-	}
-	
-	headers.error = HTTP_HEADER_PARSE_ERROR_IO;
-	return headers;
 }
 
 void http_destroy_headers(http_headers_t headers) {
@@ -122,4 +98,19 @@ void http_handle_error_gracefully(TLS source, HTTP_ERROR error, const char *info
 	
 	free(content_length);
 	free(date);
+}
+
+const char *http_get_header(http_headers_t headers, const char *key) {
+	/* check to see if we should search in the list at all */
+	if (!key || headers.count == 0)
+		return NULL;
+	
+	size_t i;
+	for (i = 0; i < headers.count; i++) {
+		if (!strcmp(key, headers.keys[i])) {
+			return headers.values[i];
+		}
+	}
+	
+	return NULL;
 }

@@ -9,7 +9,9 @@
 #include "../utils/io.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /**
  * The list of valid HTTP/1x methods.
@@ -64,4 +66,59 @@ int http_parse_method(TLS source, char *dest, size_t size) {
 	
 	printf("[HTTP/1x] [Parser] Invalid HTTP/1.1 method: '%s'\n", dest);
 	return 0;
+}
+
+http_headers_t http_parse_headers(TLS tls) {
+	http_headers_t headers = { 0 };
+	
+	char key_buffer[HTTP_HEADERS_KEY_MAX_LENGTH];
+	char value_buffer[HTTP_HEADERS_VALUE_MAX_LENGTH];
+	
+	int read;
+	while ((read = io_read_until(tls, key_buffer, ':', HTTP_HEADERS_KEY_MAX_LENGTH)) > 0) {
+		char *key = malloc(sizeof(char) * read);
+    if (!key)
+      break;
+    
+		key[read] = 0; /* NULL-terminate */
+		strcpy(key, key_buffer); /* copy buffer */
+    
+    /* lowercase the key */
+    size_t i;
+    for(i = 0; key[i]; i++){
+      key[i] = tolower(key[i]);
+    }
+    
+    headers.keys[headers.count] = key;
+    
+    /* read header value */
+    if ((read = io_read_until(tls, value_buffer, '\n', HTTP_HEADERS_KEY_MAX_LENGTH)) <= 0)  {
+      free(key);
+      headers.error = HTTP_HEADER_PARSE_ERROR_IO;
+      return headers;
+    }
+    
+    /* remove the last char; '\r' as the line ends with \r\n */
+    value_buffer[read-1] = 0;
+    
+    char *value = malloc(sizeof(char) * read);
+    if (!value) {
+      free(key);
+      break;
+    }
+    strcpy(value, value_buffer+1);
+    
+    /* put value in map */
+    headers.values[headers.count] = value;
+    
+    
+    if (++headers.count > HTTP_HEADERS_MAX) {
+      puts("Client sent too many headers!");
+      headers.error = HTTP_HEADER_PARSE_ERROR_MAX;
+      return headers;
+    }
+	}
+	
+	headers.error = HTTP_HEADER_PARSE_ERROR_IO;
+	return headers;
 }
