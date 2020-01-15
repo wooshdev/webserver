@@ -6,22 +6,36 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "server.h"
 #include "configuration/config.h"
 #include "utils/util.h"
 #include "utils/fileutil.h"
 #include "secure/tlsutil.h"
+#include "http/parser.h"
+#include "http/common.h"
+#include "utils/io.h"
+
+const char *default_server_name = "wss";
 
 int main(int argc, char **argv) {
+	if (!http_parser_setup()) {
+		puts("Failed to setup HTTP parser!");
+		return EXIT_FAILURE;
+	}
+	
 	config_t config = config_read("test.ini");
 
 	if (!config_validate(config)) {
 		puts("[Config] Invalid configuration.\nQuitting!");
 		return EXIT_FAILURE;
 	}
+	
+	/* set the http/common.h server name field, which should be used as the 'Server' header value.*/
+	strcpy(http_header_server_name, config_get_default(config, "server-name", default_server_name));
+	http_headers_strict = config_get_bool(config, "headers-strict", 0);
 
 	secure_config_t *sconfig;
 	const char *options[] = { "letsencrypt", "manual" };
@@ -50,10 +64,9 @@ int main(int argc, char **argv) {
 	puts("");
 	
 	/* Handle connections */
+	uint32_t len = sizeof(struct sockaddr_in);
 	while(1) {
 		struct sockaddr_in addr;
-		uint32_t len = sizeof(addr);
-		const char reply[] = "HTTP/1.1 200 OK\r\nServer: wws\r\nContent-Length: 6\r\nHost: sub.thewoosh.me\r\nConnection: close\r\n\r\nHello!blob of junk data1581987198567238967238967239867213896176178692";
 
 		int client = accept(sock, (struct sockaddr*)&addr, &len);
 		if (client < 0) {
@@ -63,11 +76,41 @@ int main(int argc, char **argv) {
 		
 		printf("connection.\n");
 
-		void *tlsdata = tls_setup_client(client);
+		TLS tls = tls_setup_client(client);
+		puts("> TLS Success");
 
-		if (tlsdata) {
-			tls_write_client(tlsdata, reply, strlen(reply));
-			tls_destroy_client(tlsdata);
+		if (tls) {
+			/* parse method */
+			char *method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
+			if (!method || !http_parse_method(tls, method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(method, "GET")) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, method, 0);
+				goto clean;
+			}
+			
+			/* parse path */
+			char path[HTTP_PATH_MAX];
+			path[HTTP_PATH_MAX - 1] = 0;
+			if (io_read_until(tls, path, ' ', HTTP_PATH_MAX-1) <= 0) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, path, 0);
+				goto clean;
+			}
+			
+			/* parse version */
+			char version[HTTP_VERSION_MAX];
+			version[HTTP_VERSION_MAX - 1] = 0;
+			if (io_read_until(tls, version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(version, "HTTP/1.1")) {
+				printf("invalid version='%s'\n", version);
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, version, 0);
+				goto clean;
+			}
+			
+			puts("> Parse Success");
+			const char *reply = "HTTP/1.1 200 OK\r\nServer: wss\r\nConnection: close\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\nStill working pls wait.";
+			tls_write_client(tls, reply, strlen(reply));
+
+			clean:
+			free(method);
+			tls_destroy_client(tls);
 		}
 
 		close(client);

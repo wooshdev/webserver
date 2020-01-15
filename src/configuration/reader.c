@@ -107,6 +107,25 @@ const char *config_get(config_t config, const char *key) {
 	return NULL;
 }
 
+const char *config_get_default(config_t config, const char *key, const char *def) {
+	const char *value = config_get(config, key);
+	if (value)
+		return value;
+	else
+		return def;
+}
+
+int config_get_bool(config_t config, const char *key, int def) {
+	const char *value = config_get(config, key);
+	if (!value)
+		return def;
+	if (!strcmp(value, "1"))
+		return 1;
+	if (!strcmp(value, "0"))
+		return 0;
+	return def;
+}
+
 void config_destroy(config_t config) {
 	size_t i;
 	for (i = 0; i < config.count; i++) {

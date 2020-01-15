@@ -10,6 +10,8 @@
 
 #include "../utils/fileutil.h"
 
+typedef void *TLS;
+
 /**
  * Description:
  *   The functionality of this function is pretty straightforward.
@@ -38,13 +40,13 @@ int  tls_setup(secure_config_t *);
  * Return value:
  *   NULL if failed, or a valid pointer
  */
-void *tls_setup_client(int);
+TLS tls_setup_client(int);
 /**
  * Description:
  *   The functionality of this function is pretty straightforward.
  * 
  * Parameters:
- *   void *
+ *   TLS
  *     The data created by 'tls_setup_client'.
  *   char *
  *     The data to be sent.
@@ -54,13 +56,13 @@ void *tls_setup_client(int);
  * Return value:
  *   (boolean) success status
  */
-int  tls_write_client(void *, const char *, size_t);
+int  tls_write_client(TLS, const char *, size_t);
 /**
  * Description:
  *   The functionality of this function is pretty straightforward.
  * 
  * Parameters:
- *   void *
+ *   TLS
  *     The data created by 'tls_setup_client'.
  *   char *
  *     The data to be written to.
@@ -70,17 +72,33 @@ int  tls_write_client(void *, const char *, size_t);
  * Return value:
  *   (int) 0 if failed, otherwise the amount of data read.
  */
-int  tls_read_client(void *, char *, size_t);
+int  tls_read_client(TLS, char *, size_t);
+/**
+ * Description:
+ *   This function will ensure all the bytes requested are read.
+ * 
+ * Parameters:
+ *   TLS
+ *     The data created by 'tls_setup_client'.
+ *   char *
+ *     The data to be written to.
+ *   size_t
+ *     The amount of data to be read.
+ * 
+ * Return value:
+ *   (boolean) success staus
+ */
+int  tls_read_client_complete(TLS, char *, size_t);
 /**
  * Description:
  *   This function should destroy data created/allocated by 
  *   'tls_setup_client'.
  * 
  * Parameters:
- *   void *
+ *   TLS
  *     The data created by 'tls_setup_client'.
  */
-void  tls_destroy_client(void *);
+void  tls_destroy_client(TLS);
 /**
  * Description:
  *   This function should destroy all things created/allocated by 'tls_setup'.

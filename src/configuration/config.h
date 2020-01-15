@@ -23,6 +23,9 @@ config_t config_read(const char *file_name);
 void config_destroy(config_t config);
 /* Gets the value in the config, but returns NULL if the key doesn't exists. */
 const char *config_get(config_t config, const char *key);
+/* Gets the value in the config, but returns 'default' if the key doesn't exists. */
+const char *config_get_default(config_t config, const char *key, const char *def);
+int config_get_bool(config_t config, const char *key, int def);
 
 /** Things implemented by validator.c: **/
 int config_validate(config_t config);

@@ -31,16 +31,22 @@ int tls_setup(secure_config_t *sconfig) {
 		ERR_print_errors_fp(stderr);
 		return 0;
 	}
+	
+	/*if (sconfig->chain && SSL_CTX_use_certificate_chain_file(ctx, sconfig->chain) <= 0) {
+		FILE *file = fopen(sconfig->chain, "r");
+		X509 *cert = PEM_read_X509(file, NULL, 0, NULL);
+		fclose(file);
+		SSL_CTX_add_extra_chain_cert(ctx, cert);
+		
+		puts("Failed to load certificate chain :(");
+		ERR_print_errors_fp(stderr);
+		return 0;
+	}*/
 
 	if (SSL_CTX_use_PrivateKey_file(ctx, sconfig->key, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		return 0;
 	}
-	
-	/*if (sconfig->chain && SSL_CTX_use_certificate_chain_file(ctx, sconfig->chain) <= 0) {
-		ERR_print_errors_fp(stderr);
-		return 0;
-	}*/
 
 	if (sconfig->chain) {
 		BIO *bio = BIO_new(BIO_s_mem());
@@ -110,8 +116,10 @@ void *tls_setup_client(int client) {
 	}
 	SSL_set_fd(ssl, client);
 
-	if (SSL_accept(ssl) <= 0) {
+	int ret = SSL_accept(ssl);
+	if (ret <= 0) {
 		ERR_print_errors_fp(stderr);
+		/*printf("%i\n", SSL_get_error(ssl, ret));*/
 		tls_destroy_client(ssl);
 		return NULL;
 	}
@@ -126,6 +134,21 @@ void tls_destroy_client(void *ssl) {
 
 int tls_read_client(void *pssl, char *result, size_t length) {
 	return SSL_read((SSL *) pssl, result, length);
+}
+
+int tls_read_client_complete(void *pssl, char *result, size_t length) {
+	int read = 0;
+	size_t bytes_read = 0;
+	
+	do {
+		read = SSL_read((SSL *) pssl, result + bytes_read, length - bytes_read);
+		read += bytes_read;
+		
+		if (!read)
+			return 0;
+	} while (read != length);
+	
+	return 1;
 }
 
 const char *_get_code(SSL *ssl, int i) {
