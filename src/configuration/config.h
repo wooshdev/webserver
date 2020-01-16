@@ -9,6 +9,7 @@
 #define CONFIG_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 typedef struct config_t {
 	size_t count;
@@ -19,6 +20,8 @@ typedef struct config_t {
 /** Things implemented by reader.c: **/
 /* Reads the supplied file */
 config_t config_read(const char *file_name);
+/* Reads the supplied file */
+config_t config_readf(FILE *file);
 /* Destroys and frees the data inside the config. After calling this function, the config is deemed invalid. */
 void config_destroy(config_t config);
 /* Gets the value in the config, but returns NULL if the key doesn't exists. */

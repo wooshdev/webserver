@@ -14,6 +14,10 @@
 #define CONFIG_STEP_SIZE		8
 
 config_t config_read(const char *file_name) {
+	return config_readf(fopen(file_name, "r"));
+}
+
+config_t config_readf(FILE *fp) {
 	config_t config = { 0 };
 
 	size_t current_size = CONFIG_INITIAL_SIZE;
@@ -21,11 +25,8 @@ config_t config_read(const char *file_name) {
 	config.keys = malloc(current_size * sizeof(const char *));
 	config.values = malloc(current_size * sizeof(const char *));
 
-	FILE *fp = fopen(file_name, "r");
-
 	if (!fp) {
-		perror("Config: failed to read");
-		printf("Config: filename='%s'\n", file_name);
+		perror("Config: failed to read configuration file.");
 		exit(EXIT_FAILURE);
 	}
 
