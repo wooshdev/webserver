@@ -18,6 +18,7 @@
 #include "http/parser.h"
 #include "http/common.h"
 #include "utils/io.h"
+#include "handling/handlers.h"
 
 const char *default_server_name = "wss";
 static int socket_initialized = 0;
@@ -44,23 +45,34 @@ int main(int argc, char **argv) {
 	}
   
 	if (!http_parser_setup()) {
-		puts("Failed to setup HTTP parser!");
+		fputs("Failed to setup HTTP parser!\n", stderr);
 		return EXIT_FAILURE;
 	}
 	
 	config_t config = config_read("test.ini");
 	if (!config_validate(config)) {
-		puts("[Config] Invalid configuration.\nQuitting!");
+		fputs("[Config] Invalid configuration.\nQuitting!\n", stderr);
 		return EXIT_FAILURE;
 	}
 	
+	/** static configuration options: **/
 	/* set the http/common.h server name field, which should be used as the 'Server' header value.*/
 	strcpy(http_header_server_name, config_get_default(config, "server-name", default_server_name));
 	strcpy(http_host, config_get(config, "hostname"));
-	http_headers_strict = config_get_bool(config, "headers-strict", 0);
 	
+	http_headers_strict = config_get_bool(config, "headers-strict", 0);
 	http_host_strict = config_get_bool(config, "hostname-strict", 0);
 
+	/** handler configuration options: **/
+	if (!handle_setup(config)) {
+		fputs("[Handlers] Failed setup.\n", stderr);
+		config_destroy(config);
+		return EXIT_FAILURE;
+	}
+	
+	printf("%li\n", _POSIX_C_SOURCE);
+	
+	/** secure configuration options: **/
 	secure_config_t *sconfig;
 	const char *options[] = { "letsencrypt", "manual" };
 	switch (strswitch(config_get(config, "tls-mode"), options, sizeof(options)/sizeof(options[0]), CASEFLAG_IGNORE_A)) {
@@ -105,27 +117,27 @@ int main(int argc, char **argv) {
 		puts("> TLS Success");
 
 		if (tls) {
+			http_request_t req;
+			req.method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
+		
 			/* parse method */
-			char *method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
-			if (!method || !http_parse_method(tls, method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(method, "GET")) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, method, 0);
+			if (!req.method || !http_parse_method(tls, req.method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(req.method, "GET")) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, req.method, 0);
 				goto clean;
 			}
 			
 			/* parse path */
-			char path[HTTP_PATH_MAX];
-			path[HTTP_PATH_MAX - 1] = 0;
-			if (io_read_until(tls, path, ' ', HTTP_PATH_MAX-1) <= 0) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, path, 0);
+			req.path[HTTP_PATH_MAX - 1] = 0;
+			if (io_read_until(tls, req.path, ' ', HTTP_PATH_MAX-1) <= 0) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, req.path, 0);
 				goto clean;
 			}
 			
 			/* parse version */
-			char version[HTTP_VERSION_MAX];
-			version[HTTP_VERSION_MAX - 1] = 0;
-			if (io_read_until(tls, version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(version, "HTTP/1.1")) {
-				printf("invalid version='%s'\n", version);
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, version, 0);
+			req.version[HTTP_VERSION_MAX - 1] = 0;
+			if (io_read_until(tls, req.version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(req.version, "HTTP/1.1")) {
+				printf("invalid version='%s'\n", req.version);
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, req.version, 0);
 				goto clean;
 			}
       
@@ -133,25 +145,24 @@ int main(int argc, char **argv) {
       char end_character[1];
       tls_read_client(tls, end_character, 1);
       
-      http_headers_t headers = http_parse_headers(tls);
-      printf("header_error=%i\n", headers.error);
-      
-			printf("host got=%s shouldbe=%s\n", http_get_header(headers, "host"), http_host);
+			req.headers = http_parse_headers(tls);
+      /*printf("header_error=%i\n", headers.error);*/
 			
 			const char *hostv;
-			if (http_host_strict && (hostv = http_get_header(headers, "host")) && strcmp(http_host, hostv)) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, version, 0);
+			if (http_host_strict && (hostv = http_get_header(req.headers, "host")) && strcmp(http_host, hostv)) {
+				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, req.version, 0);
 				goto clean;
 			}
-			
-			http_destroy_headers(headers);
-      
+			puts("> Header Parse Success");
 			puts("> Parse Success");
-			const char *reply = "HTTP/1.1 200 OK\r\nServer: wss\r\nConnection: close\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\nStill working pls wait.";
-			tls_write_client(tls, reply, strlen(reply));
+			
+			/* handle the request. */
+			http_response_t response = handle_request(req);
+			tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
 
 			clean:
-			free(method);
+			http_destroy_headers(req.headers);
+			free(req.method);
 			tls_destroy_client(tls);
 		}
 

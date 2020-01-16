@@ -56,6 +56,9 @@ typedef enum HTTP_HEADER_PARSE_ERROR {
 	HTTP_HEADER_PARSE_ERROR_UNREGISTERED = 0x3,
 } HTTP_HEADER_PARSE_ERROR;
 
+typedef enum HTTP_HANDLE_ERROR {
+	HTTP_HANDLE_ERROR_NONE = 0x0
+} HTTP_HANDLE_ERROR;
 
 typedef struct http_headers_t {
 	size_t count;
@@ -64,7 +67,25 @@ typedef struct http_headers_t {
 	HTTP_HEADER_PARSE_ERROR error;
 } http_headers_t;
 
+typedef struct http_response_t {
+	/* The complete HTTP response (message). This field may be NULL, 
+	 * but the 'error' field should not equal to HTTP_HANDLE_ERROR_NONE.
+	 */
+	const char *content;
+	
+	/* The size of 'content'. if this is 0, strlen will be used. */
+	size_t size;
+	
+	/* The error, or HTTP_HANDLE_ERROR_NONE if none */
+	HTTP_HANDLE_ERROR error;
+} http_response_t;
 
+typedef struct http_request_t {
+	char *method;
+	char path[HTTP_PATH_MAX];
+	char version[HTTP_VERSION_MAX];
+	http_headers_t headers;
+} http_request_t;
 
 /**
  * Description:
