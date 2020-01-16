@@ -64,6 +64,12 @@
  */
 int strswitch(const char *in, const char **list, size_t size, int case_flag);
 
+
+/**
+ * Copied from: https://stackoverflow.com/questions/252782/strdup-what-does-it-do-in-c#252802
+ * Should conform to: https://linux.die.net/man/3/strdup
+ */
+char *strdup(const char *src);
 #endif /* UTIL_H */
  
  
