@@ -6,14 +6,24 @@
 typedef http_response_t (*http_handler_func)(http_request_t);
 
 typedef enum HTTP_HANDLER_TYPE {
-	HTTP_HANDLER_TYPE_FILE_SYSTEM = 0x0,
+	HTTP_HANDLER_TYPE_NONE = 0x0,
+	HTTP_HANDLER_TYPE_FILESERVER = 0x1,
 } HTTP_HANDLER_TYPE;
+
+typedef struct handler_fs_t {
+	/* working directory */
+	char *wdir;
+	/* (boolean) send modification date */
+	int send_mod;
+} handler_fs_t;
 
 typedef struct http_handler_t {
 	HTTP_HANDLER_TYPE type;
-	const char *name;
-	const char *root;
+	char *name;
+	char *root;
 	http_handler_func function;
+	/* user data */
+	void *data;
 } http_handler_t;
 
 /**
@@ -29,6 +39,8 @@ typedef struct http_handler_t {
  */
 int handle_setup(config_t);
 
+void handle_destroy(void);
+
 /**
  * Description:
  *   This function will forward the request to the correct handler.
@@ -41,5 +53,9 @@ int handle_setup(config_t);
  *   The HTTP response. The content field can be NULL, but the error field should be set.
  */
 http_response_t handle_request(http_request_t);
+
+size_t handler_count;
+http_handler_t **handlers;
+
 
 #endif /* HANDLERS_H */

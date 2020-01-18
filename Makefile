@@ -11,7 +11,7 @@ LDFLAGS = -pthread `pkg-config --static --libs openssl`
 CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
-SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so bin/http/parser.so bin/http/common.so bin/handling/handlers.so 
+SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so bin/http/parser.so bin/http/common.so bin/handling/handlers.so bin/http/http1.so bin/http/http2.so
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
 	$(CC) $(CFLAGS) -o $@ $< $(SUBBINARIES) $(LDFLAGS)
@@ -35,6 +35,10 @@ bin/secure/implopenssl.o: src/secure/impl/implopenssl.c src/secure/tlsutil.h bin
 bin/io.so: src/utils/io.c src/utils/io.h src/secure/tlsutil.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/parser.so: src/http/parser.c src/http/parser.h bin/io.so src/utils/io.h 
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http/http1.so: src/http/http1.c src/http/http1.h bin/http/parser.so
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http/http2.so: src/http/http2.c src/http/http2.h bin/http/parser.so
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/common.so: src/http/common.c src/http/common.h bin/io.so src/utils/io.h 
 	$(CC) -o $@ -c $(CFLAGS) $<

@@ -19,6 +19,8 @@
 #include "http/common.h"
 #include "utils/io.h"
 #include "handling/handlers.h"
+#include "http/http1.h"
+#include "http/http2.h"
 
 const char *default_server_name = "wss";
 static int socket_initialized = 0;
@@ -70,8 +72,6 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	
-	printf("%li\n", _POSIX_C_SOURCE);
-	
 	/** secure configuration options: **/
 	secure_config_t *sconfig;
 	const char *options[] = { "letsencrypt", "manual" };
@@ -110,65 +110,33 @@ int main(int argc, char **argv) {
 			perror("Client acceptance failure");
 			exit(EXIT_FAILURE);
 		}
-		
-		printf("connection.\n");
 
 		TLS tls = tls_setup_client(client);
-		puts("> TLS Success");
 
 		if (tls) {
-			http_request_t req;
-			req.method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
-		
-			/* parse method */
-			if (!req.method || !http_parse_method(tls, req.method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(req.method, "GET")) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, req.method, 0);
-				goto clean;
+			http_request_t request;
+			TLS_AP ap = tls_get_ap(tls);
+			switch (ap) {
+				case TLS_AP_HTTP11:
+					request = http1_parse(tls);
+					break;
+				case TLS_AP_HTTP2:
+					request = http2_parse(tls);
+					break;
+				default:
+					fputs("Invalid AP!\n", stderr);
+					goto clean;
 			}
 			
-			/* parse path */
-			req.path[HTTP_PATH_MAX - 1] = 0;
-			if (io_read_until(tls, req.path, ' ', HTTP_PATH_MAX-1) <= 0) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, req.path, 0);
-				goto clean;
-			}
-			
-			/* parse version */
-			req.version[HTTP_VERSION_MAX - 1] = 0;
-			if (io_read_until(tls, req.version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(req.version, "HTTP/1.1")) {
-				printf("invalid version='%s'\n", req.version);
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, req.version, 0);
-				goto clean;
-			}
-      
-      /* remove the last '\n' character from the stream */
-      char end_character[1];
-      tls_read_client(tls, end_character, 1);
-      
-			req.headers = http_parse_headers(tls);
-      /*printf("header_error=%i\n", headers.error);*/
-			
-			const char *hostv;
-			if (http_host_strict && (hostv = http_get_header(req.headers, "host")) && strcmp(http_host, hostv)) {
-				http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, req.version, 0);
-				goto clean;
-			}
-			puts("> Header Parse Success");
-			puts("> Parse Success");
-			
-			/* handle the request. */
-			http_response_t response = handle_request(req);
+			http_response_t response = handle_request(request);
 			tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
-
-			clean:
-			http_destroy_headers(req.headers);
-			free(req.method);
-			tls_destroy_client(tls);
+			free(response.content);
 		}
-
+		clean:
 		close(client);
 	}
 
+	handle_destroy();
 	close(sock);
 	tls_destroy();
 	

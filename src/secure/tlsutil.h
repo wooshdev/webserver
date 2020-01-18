@@ -10,7 +10,19 @@
 
 #include "../utils/fileutil.h"
 
+typedef enum {
+	TLS_AP_INVALID=0x0,
+	TLS_AP_HTTP11=0x1,
+	TLS_AP_HTTP2=0x2
+} TLS_AP;
+
 typedef void *TLS;
+
+/**
+ * Description:
+ *   Get the application protocol. (ALPN)
+ */
+TLS_AP  tls_get_ap(TLS);
 
 /**
  * Description:

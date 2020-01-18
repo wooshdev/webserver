@@ -5,6 +5,8 @@
 #include <string.h>
 #include "../utils/util.h"
 
+/*#include "fileserver.c"*/
+
 static char test[] = "HTTP/1.1 200 OK\r\nServer: wss\r\nConnection: close\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\nStill working pls wait.";
 
 int handle_setup(config_t config) {
@@ -36,13 +38,15 @@ int handle_setup(config_t config) {
 	return 1;
 }
 
-http_response_t handle_request(http_request_t request) {
+void handle_destroy(){}
+	http_response_t handle_request(http_request_t request) {
 	http_response_t response = { 0 };
 	
 	char *message = strdup(test);
 	
+	size_t size = sizeof(test);
 	response.content = message;
-	response.size = sizeof(test);
+	response.size = size-1;
 	
 	return response;
 }

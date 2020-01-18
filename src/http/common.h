@@ -71,7 +71,7 @@ typedef struct http_response_t {
 	/* The complete HTTP response (message). This field may be NULL, 
 	 * but the 'error' field should not equal to HTTP_HANDLE_ERROR_NONE.
 	 */
-	const char *content;
+	char *content;
 	
 	/* The size of 'content'. if this is 0, strlen will be used. */
 	size_t size;

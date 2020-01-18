@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #define CONFIG_CHUCK_SIZE		256
 #define CONFIG_INITIAL_SIZE 8
@@ -120,9 +121,9 @@ int config_get_bool(config_t config, const char *key, int def) {
 	const char *value = config_get(config, key);
 	if (!value)
 		return def;
-	if (!strcmp(value, "1"))
+	if (!strcmp(value, "1") || !strcasecmp(value, "yes") || !strcasecmp(value, "true"))
 		return 1;
-	if (!strcmp(value, "0"))
+	if (!strcmp(value, "0") || !strcasecmp(value, "no") || !strcasecmp(value, "true"))
 		return 0;
 	return def;
 }

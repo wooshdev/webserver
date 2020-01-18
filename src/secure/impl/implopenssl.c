@@ -6,8 +6,87 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <string.h>
 
 SSL_CTX *ctx;
+typedef const unsigned char *cucp;
+const unsigned char alpn_h1[] = "http/1.1";
+const unsigned char alpn_h2[] = "h2";
+
+unsigned char data[] = "http/1.1";
+
+int comp(cucp a, cucp b, size_t len) {
+	size_t i;
+	for (i = 0; i < len; i++) {
+		if (a[i] != b[i])
+			return 0;
+	}
+	return 1;
+}
+
+TLS_AP tls_get_ap(TLS tls) {
+	cucp dat;
+	uint32_t len;
+	SSL_get0_alpn_selected((SSL *)tls, &dat, &len);
+	printf("getap='%s' len=%u p=%p ps=%p\n", dat, len, dat, data);
+	
+	switch (len) {
+		 case 8:
+		 	if (comp(dat, alpn_h1, len))
+		 		return TLS_AP_HTTP11;
+		 	break;
+		 case 2:
+		 	if (comp(dat, alpn_h2, len))
+		 		return TLS_AP_HTTP2;
+	}
+	
+	return TLS_AP_INVALID;
+}
+
+static int alpn_handle (SSL *ssl,
+                                            const unsigned char **out,
+                                            unsigned char *outlen,
+                                            const unsigned char *in,
+                                            unsigned int inlen,
+                                            void *arg) {
+	/* */
+	if (inlen == 0) {
+		puts("invalid alpn data...");
+		return SSL_TLSEXT_ERR_ALERT_FATAL;
+	}
+	
+	TLS_AP ap = TLS_AP_INVALID;
+	
+	unsigned char c[256];
+	size_t i, j;
+	for (i = 0; i < inlen; /**/) {
+		unsigned int len = in[i++];
+		if (len + i > inlen || len + i > 254) {
+			puts("invalid alpn data...");
+			return SSL_TLSEXT_ERR_ALERT_FATAL;
+		}
+		
+		c[len] = 0;
+		for (j = 0; j < len; j++)
+			c[j] = in[i+j];
+		
+		if (len == sizeof(alpn_h1) - 1 && comp(alpn_h1, c, len) && ap < TLS_AP_HTTP11) {
+			*out = alpn_h1;
+			*outlen = len;
+			ap = TLS_AP_HTTP11;
+		} else if (len == sizeof(alpn_h2) - 1 && comp(alpn_h2, c, len) && ap < TLS_AP_HTTP2){
+			*out = alpn_h2;
+			*outlen = len;
+			ap = TLS_AP_HTTP2;
+		}
+		
+		i+=len;
+	}
+	
+	/*printf("ap=%i\n", ap);*/
+	
+	return SSL_TLSEXT_ERR_OK;
+}
 
 int tls_setup(secure_config_t *sconfig) {
 	SSL_load_error_strings();
@@ -99,6 +178,10 @@ int tls_setup(secure_config_t *sconfig) {
 		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(stack, i);
 		printf("> '%s'\n", SSL_CIPHER_get_name(cipher));
 	}*/
+	
+	
+	/* set ALPN */
+	SSL_CTX_set_alpn_select_cb(ctx, alpn_handle, NULL);
 	
 	return 1;
 }
