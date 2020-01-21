@@ -25,13 +25,13 @@ size_t huff_get(char *stream, size_t length) {
 			return current->value;
 		}
 		
-		printf("bit: %c\n", ((stream[i/8] >> i%8) & 1 ? '1' : '0'));
-		if ((stream[i/8] >> 8-i%8) & 1) {
+		/*printf("bit: %c\n", ((stream[i/8] >> i%8) & 1 ? '1' : '0'));*/
+		if ((stream[i/8] >> (8-i%8)) & 1) {
 			current = current->right;
-			puts("go right leaf");
+			/*puts("go right leaf");*/
 		} else {
 			current = current->left;
-			puts("go left leaf");
+			/*puts("go left leaf");*/
 		}
 	}
 	return current->value;
@@ -72,8 +72,8 @@ int huff_setup() {
 		current->value = i;
 	}
 	
-	char test[] = { 0x71 };
-	printf("W should appear: '%zu'\n", huff_get(test, sizeof(test)/sizeof(test[0])));
+	/*char test[] = { 0x71 };
+	printf("W should appear: '%zu'\n", huff_get(test, sizeof(test)/sizeof(test[0])));*/
 	
 	return 1;
 }

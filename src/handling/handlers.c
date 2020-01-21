@@ -38,8 +38,10 @@ int handle_setup(config_t config) {
 	return 1;
 }
 
-void handle_destroy(){}
-	http_response_t handle_request(http_request_t request) {
+void handle_destroy() {
+}
+
+http_response_t handle_request(http_request_t request) {
 	http_response_t response = { 0 };
 	
 	char *message = strdup(test);
@@ -48,5 +50,6 @@ void handle_destroy(){}
 	response.content = message;
 	response.size = size-1;
 	
+	response.status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
 }

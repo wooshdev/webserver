@@ -14,7 +14,7 @@ BIO *bio_err = NULL;
 
 ocsp_data_t ocsp_data = { 0 };
 
-#define LOG_ALPNS
+/*#define LOG_ALPNS*/
 
 SSL_CTX *ctx;
 typedef const unsigned char *cucp;
@@ -156,42 +156,30 @@ int tls_setup(secure_config_t *sconfig) {
 	}
 
 	if (sconfig->chain) {
-		BIO *bio = BIO_new(BIO_s_mem());
+		BIO *bio = BIO_new(BIO_s_file());
 		X509 *cert = X509_new();
-		/*bio = BIO_new_mem_buf(certData, -1);*/
 		if (!BIO_read_filename(bio, sconfig->chain))
 			perror("chain read failure");
+		
 		PEM_read_bio_X509(bio, &cert, 0, NULL);
 
 		if (!cert) {
-        	puts("Failed to load chain");
+			puts("Failed to load chain");
 		}
 
-		if (bio) {
+		if (bio)
 			BIO_free(bio);
-		}
-
+		
 		SSL_CTX_add1_chain_cert(ctx, cert);
 	}
-
-	const char *names[] = { "TLS 1.0", "TLS 1.1", "TLS 1.2", "TLS 1.3", "TLS 1.4" };
 	
 	if (sconfig->min_protocol_version != PROTOCOL_NULL) {
-		printf("minver was set\n");
 		SSL_CTX_set_min_proto_version(ctx, TLS1_VERSION + sconfig->min_protocol_version);
 	}
-	
-	printf("[Secure] Using protocol version: %s\n", names[SSL_CTX_get_min_proto_version(ctx) - TLS1_VERSION]);
-	
-	printf("[Secure] Using protocol max: %zi\n", SSL_CTX_get_max_proto_version(ctx));
-	
-	printf("ciphers=%s\ncipher_suites=%s\n", sconfig->cipher_list, sconfig->cipher_suites);
 	
 	if (sconfig->cipher_suites && !SSL_CTX_set_ciphersuites(ctx, sconfig->cipher_suites)) {
 		perror("[Secure] Failed to set cipher suites");
 	}
-	
-	printf("%p %p %p\n", sconfig->cipher_suites, sconfig->cipher_list, sconfig->chain );
 	
 	if (sconfig->cipher_list && !SSL_CTX_set_cipher_list(ctx, sconfig->cipher_list)) {
 		perror("[Secure] Failed to set cipher list");
@@ -233,7 +221,7 @@ void tls_destroy(void) {
 void *tls_setup_client(int client) {
 	SSL *ssl = SSL_new(ctx);
 	if (!ssl) {
-		puts("Failed to create SSL");
+		puts("[OpenSSL] (Client) Failed to create SSL object!");
 		return NULL;
 	}
 	SSL_set_fd(ssl, client);

@@ -39,7 +39,6 @@ int http_parser_setup() {
 	}
 	HTTP1_LONGEST_METHOD = method_max + 1;
 	
-	
 	return 1;
 }
 
@@ -81,7 +80,6 @@ void http_parse_headers(TLS tls, http_headers_t headers) {
 		
 		if (key_buffer[0] == '\r' && key_buffer[1] == '\n') {
 			/*end of headers*/
-			puts("end of headers");
 			return;
 		}
 		

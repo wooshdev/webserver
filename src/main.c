@@ -22,9 +22,31 @@
 #include "http/http1.h"
 #include "http/http2.h"
 
+/* This array is defined by src/http/common.c */
+extern const char *http_common_log_status_names[];
+
+/* How should we log requests? */
+typedef enum {
+	/* Don't log requests. */
+	REQUEST_LOG_NONE,
+	
+	/* As minimal as possible. */
+	REQUEST_LOG_MINIMAL,
+	
+	/* Log a lot of information (useful for debugging) */
+	REQUEST_LOG_VERBOSE,
+	
+	/* (not an actual type) */
+	_REQUEST_LOG_END
+	
+} REQUEST_LOG_TYPE;
+
+const char *log_prefixes[] = { NULL, "minimal", "verbose" };
+
 const char *default_server_name = "wss";
 static int socket_initialized = 0;
 static int sock;
+REQUEST_LOG_TYPE request_log_type = REQUEST_LOG_MINIMAL;
 
 static void catch_signal(int signo, siginfo_t *info, void *context) {
   if (socket_initialized) {
@@ -79,8 +101,8 @@ int main(int argc, char **argv) {
 	
 	/** secure configuration options: **/
 	secure_config_t *sconfig;
-	const char *options[] = { "letsencrypt", "manual" };
-	switch (strswitch(config_get(config, "tls-mode"), options, sizeof(options)/sizeof(options[0]), CASEFLAG_IGNORE_A)) {
+	const char *tls_mode_options[] = { "letsencrypt", "manual" };
+	switch (strswitch(config_get(config, "tls-mode"), tls_mode_options, sizeof(tls_mode_options)/sizeof(tls_mode_options[0]), CASEFLAG_IGNORE_A)) {
 		case 0:
 			sconfig = secure_config_letsencrypt();
 			break;
@@ -90,6 +112,7 @@ int main(int argc, char **argv) {
 			sconfig = secure_config_manual(config);
 			break;
 	}
+	
 	if (!secure_config_others(config, sconfig)) {
 		puts("Secure config failure.");
 		free(sconfig);
@@ -97,7 +120,25 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	
-	printf("Cert:\n\tcert=\"%s\"\n\tchain=\"%s\"\n\tkey=\"%s\"\n", sconfig->cert, sconfig->chain, sconfig->key);
+	/* Request log type: */
+	const char *request_log_type_s = config_get(config, "log-request");
+	if (request_log_type_s) {
+		const char *request_log_type_options[] = { "none", "minimal", "verbose" };
+		int i = strswitch(request_log_type_s, request_log_type_options, sizeof(request_log_type_options)/sizeof(request_log_type_options[0]), CASEFLAG_IGNORE_A);
+		if (i > -1 && i < _REQUEST_LOG_END) {
+			request_log_type = (REQUEST_LOG_TYPE)i;
+			
+			if (request_log_type == REQUEST_LOG_NONE)
+				puts("[Config] Request logging disabled.");
+			else
+				printf("[Config] Using %s request logging.\n", log_prefixes[request_log_type]);
+			
+		} else {
+			fprintf(stderr, "\x1b[31m[Config] Invalid request log type: '%s'\x1b[0m\n", request_log_type_s);
+		}
+	} else {
+		fputs("\x1b[33m[Config] Warning: request log type not defined, setting to default: verbose\x1b[0m\n", stderr);
+	}
 
 	tls_setup(sconfig);
 	
@@ -108,7 +149,8 @@ int main(int argc, char **argv) {
 	free(sconfig);
 	config_destroy(config);
 	
-	puts("");
+	/* This new line character is intentional ;) */
+	puts("Initialization done.\n");
 	
 	/* Handle connections */
 	uint32_t len = sizeof(struct sockaddr_in);
@@ -125,12 +167,17 @@ int main(int argc, char **argv) {
 		http_request_t *request = NULL;
 
 		if (tls) {
+			const char *http_version, *http_version_minimal;
 			TLS_AP ap = tls_get_ap(tls);
 			switch (ap) {
 				case TLS_AP_HTTP11:
+					http_version = "HTTP/1.1";
+					http_version_minimal = "1.1";
 					request = http1_parse(tls);
 					break;
 				case TLS_AP_HTTP2:
+					http_version = "HTTP/2";
+					http_version_minimal = "2";
 					/*request = */http2_parse(tls);
 					break;
 				default:
@@ -142,13 +189,25 @@ int main(int argc, char **argv) {
 				http_response_t response = handle_request(*request);
 				tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
 				free(response.content);
+				
+				switch (request_log_type) {
+					case REQUEST_LOG_MINIMAL:
+						printf("> %s \"%s\" (%s) v=%s\n", request->method, request->path, http_common_log_status_names[response.status], http_version_minimal);
+						break;
+					case REQUEST_LOG_VERBOSE:
+						printf("> path='%s' status='%s' method='%s' version='%s' response: %zi\n", request->path, http_common_log_status_names[response.status], request->method, http_version, response.size);
+						break;
+					default:
+						break;
+				}
+			} else {
+				if (request_log_type != REQUEST_LOG_NONE)
+					puts("> Parser error");
 			}
 		}
 		clean:
 		if (request) {
 			http_destroy_headers(request->headers);
-			printf("pointers: %p %p %p\n", request, &request->headers, request->method);
-			printf("method=%s\n", request->method);
 			free(request->method);
 			free(request);
 		}

@@ -43,8 +43,6 @@ socket_t server_create_socket(uint16_t port) {
 	socklen_t len = sizeof(addr);
 	if (getsockname(created_socket, (struct sockaddr *)&addr, &len) == -1)
 			perror("getsockname");
-	else
-			printf("Running on port: %d\n", ntohs(addr.sin_port));
 
 	return created_socket;
 } 

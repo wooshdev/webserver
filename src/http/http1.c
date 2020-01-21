@@ -8,29 +8,26 @@
 http_request_t *http1_parse(TLS tls) {
 	http_request_t *request = calloc(1, sizeof(http_request_t));
 	
-	http_request_t req = *request;
-	req.method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
-	
-	puts("Using HTTP/1.1");
+	request->method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
 
 	/* parse method */
-	if (!req.method || !http_parse_method(tls, req.method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(req.method, "GET")) {
-		http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, req.method, 0);
+	if (!request->method || !http_parse_method(tls, request->method, HTTP1_LONGEST_METHOD) || /* only support 'GET' atm. */ strcmp(request->method, "GET")) {
+		http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, request->method, 0);
 		goto clean;
 	}
 	
 	/* parse path */
-	req.path[HTTP_PATH_MAX - 1] = 0;
-	if (io_read_until(tls, req.path, ' ', HTTP_PATH_MAX-1) <= 0) {
-		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, req.path, 0);
+	request->path[HTTP_PATH_MAX - 1] = 0;
+	if (io_read_until(tls, request->path, ' ', HTTP_PATH_MAX-1) <= 0) {
+		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_PATH, request->path, 0);
 		goto clean;
 	}
 	
 	/* parse version */
-	req.version[HTTP_VERSION_MAX - 1] = 0;
-	if (io_read_until(tls, req.version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(req.version, "HTTP/1.1")) {
-		printf("invalid version='%s'\n", req.version);
-		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, req.version, 0);
+	request->version[HTTP_VERSION_MAX - 1] = 0;
+	if (io_read_until(tls, request->version, '\r', HTTP_VERSION_MAX-1) <= 0 || strcmp(request->version, "HTTP/1.1")) {
+		printf("invalid version='%s'\n", request->version);
+		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_VERSION, request->version, 0);
 		goto clean;
 	}
 	
@@ -40,11 +37,16 @@ http_request_t *http1_parse(TLS tls) {
 	
 	memset(&request->headers, 0, sizeof(request->headers));
 	http_parse_headers(tls, request->headers);
-	/*printf("header_error=%i\n", headers.error);*/
+	
+	if (request->headers.error != HTTP_HEADER_PARSE_ERROR_NONE) {
+		static const char *header_errors[] = { "HTTP_HEADER_PARSE_ERROR_NONE", "HTTP_HEADER_PARSE_ERROR_IO", "HTTP_HEADER_PARSE_ERROR_MAX", "HTTP_HEADER_PARSE_ERROR_UNREGISTERED" };
+		printf("[HTTP/1.1] Header Error: %s\n", header_errors[request->headers.error]);
+		goto clean;
+	}
 	
 	const char *hostv;
-	if (http_host_strict && (hostv = http_get_header(req.headers, "host")) && strcmp(http_host, hostv)) {
-		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, req.version, 0);
+	if (http_host_strict && (hostv = http_get_header(request->headers, "host")) && strcmp(http_host, hostv)) {
+		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, request->version, 0);
 		goto clean;
 	}
 	

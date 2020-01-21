@@ -60,6 +60,14 @@ typedef enum HTTP_HANDLE_ERROR {
 	HTTP_HANDLE_ERROR_NONE = 0x0
 } HTTP_HANDLE_ERROR;
 
+typedef enum {
+	/* This is the initial value of the status (this should be changed) */
+	HTTP_LOG_STATUS_INVALID = 0x0,
+	HTTP_LOG_STATUS_NO_ERROR = 0x1,
+	HTTP_LOG_STATUS_CLIENT_ERROR = 0x2,
+	HTTP_LOG_STATUS_SERVER_ERROR = 0x3
+} HTTP_LOG_STATUS;
+
 typedef struct http_headers_t {
 	size_t count;
 	char *keys[HTTP_HEADERS_MAX];
@@ -75,6 +83,9 @@ typedef struct http_response_t {
 	
 	/* The size of 'content'. if this is 0, strlen will be used. */
 	size_t size;
+	
+	/* The status of the response. This is purely used for logging. */
+	HTTP_LOG_STATUS status;
 	
 	/* The error, or HTTP_HANDLE_ERROR_NONE if none */
 	HTTP_HANDLE_ERROR error;

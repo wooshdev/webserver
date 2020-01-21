@@ -17,6 +17,8 @@
 char http_header_server_name[128];
 char http_host[128];
 
+const char *http_common_log_status_names[] = { "?", "ok", "client error", "server error" };
+
 static const char *error_statuses[] = { "405 Method Not Allowed", "414 URI Too Long", "505 HTTP Version Not Supported", "400 Bad Request" };
 #define _MALFORMEDREQ "<h1>Your browser has sent a malformed request.</h1><hr><p>"
 static const char *error_bodies[] = { 
