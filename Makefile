@@ -30,7 +30,7 @@ bin/util.o: src/utils/util.c src/utils/util.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/server.o: src/server.c src/server.h
 	$(CC) -o $@ -c $(CFLAGS) $<
-bin/secure/implopenssl.o: src/secure/impl/implopenssl.c src/secure/tlsutil.h bin/file_util.o
+bin/secure/implopenssl.o: src/secure/impl/implopenssl.c src/secure/tlsutil.h bin/file_util.o src/secure/impl/ossl-ocsp.c
 	$(CC) -o $@ -c $(CFLAGS) $< $(LDFLAGS)
 bin/io.so: src/utils/io.c src/utils/io.h src/secure/tlsutil.h
 	$(CC) -o $@ -c $(CFLAGS) $<
@@ -38,7 +38,7 @@ bin/http/parser.so: src/http/parser.c src/http/parser.h bin/io.so src/utils/io.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/http1.so: src/http/http1.c src/http/http1.h bin/http/parser.so
 	$(CC) -o $@ -c $(CFLAGS) $<
-bin/http/http2.so: src/http/http2.c src/http/http2.h bin/http/parser.so
+bin/http/http2.so: src/http/http2.c src/http/http2* src/http/huffman.c
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/common.so: src/http/common.c src/http/common.h bin/io.so src/utils/io.h 
 	$(CC) -o $@ -c $(CFLAGS) $<

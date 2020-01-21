@@ -45,6 +45,11 @@ int main(int argc, char **argv) {
     perror("info");
 		exit(EXIT_FAILURE);
 	}
+	
+	if (!http2_setup()) {
+		fputs("Failed to setup HTTP/2!\n", stderr);
+		return EXIT_FAILURE;
+	}
   
 	if (!http_parser_setup()) {
 		fputs("Failed to setup HTTP parser!\n", stderr);
@@ -85,14 +90,19 @@ int main(int argc, char **argv) {
 			sconfig = secure_config_manual(config);
 			break;
 	}
-	secure_config_others(config, sconfig);
+	if (!secure_config_others(config, sconfig)) {
+		puts("Secure config failure.");
+		free(sconfig);
+		config_destroy(config);
+		return EXIT_FAILURE;
+	}
 	
 	printf("Cert:\n\tcert=\"%s\"\n\tchain=\"%s\"\n\tkey=\"%s\"\n", sconfig->cert, sconfig->chain, sconfig->key);
 
 	tls_setup(sconfig);
 	
 	sock = server_create_socket((uint16_t)strtoul(config_get(config, "port"), NULL, 0));
-  socket_initialized = 1;
+	socket_initialized = 1;
 	
 	/* post-init: */
 	free(sconfig);
@@ -112,27 +122,36 @@ int main(int argc, char **argv) {
 		}
 
 		TLS tls = tls_setup_client(client);
+		http_request_t *request = NULL;
 
 		if (tls) {
-			http_request_t request;
 			TLS_AP ap = tls_get_ap(tls);
 			switch (ap) {
 				case TLS_AP_HTTP11:
 					request = http1_parse(tls);
 					break;
 				case TLS_AP_HTTP2:
-					request = http2_parse(tls);
+					/*request = */http2_parse(tls);
 					break;
 				default:
 					fputs("Invalid AP!\n", stderr);
 					goto clean;
 			}
 			
-			http_response_t response = handle_request(request);
-			tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
-			free(response.content);
+			if (request) {
+				http_response_t response = handle_request(*request);
+				tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
+				free(response.content);
+			}
 		}
 		clean:
+		if (request) {
+			http_destroy_headers(request->headers);
+			printf("pointers: %p %p %p\n", request, &request->headers, request->method);
+			printf("method=%s\n", request->method);
+			free(request->method);
+			free(request);
+		}
 		close(client);
 	}
 

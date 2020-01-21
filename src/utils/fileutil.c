@@ -42,7 +42,23 @@ int secure_config_others(config_t config, secure_config_t *sconfig) {
 			break;
 	}
 	
-	/* nothing can really fail, because the members can be unspecified/NULL. */
+	/* OCSP Settings */
+	const char *ocsp_options[] = { "file" };
+	switch (strswitch(config_get(config, "ocsp"), ocsp_options, sizeof(ocsp_options)/sizeof(ocsp_options[0]), CASEFLAG_IGNORE_A)) {
+		case 0: {
+			char *file = strdup(config_get(config, "ocsp-file"));
+			if (file) {
+				puts("[Debug] OCSP is enabled.");
+				sconfig->ocsp_file = file;
+			} else {
+				fputs("\x1b[31m[OCSP] OCSP request but not enabled. Reason: ocsp-file not defined but ocsp mode set to file.\x1b[0m\n", stderr);
+				return 0;
+			}
+		} break;
+		default:
+			puts("[Debug] OCSP is disabled.");
+	}
+	
 	return 1;
 }
 

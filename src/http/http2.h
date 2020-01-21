@@ -6,4 +6,6 @@
 
 http_request_t http2_parse(TLS);
 
+int http2_setup();
+
 #endif /*H2_H*/

@@ -8,6 +8,14 @@
 #include <openssl/err.h>
 #include <string.h>
 
+BIO *bio_err = NULL;
+
+#include "ossl-ocsp.c"
+
+ocsp_data_t ocsp_data = { 0 };
+
+#define LOG_ALPNS
+
 SSL_CTX *ctx;
 typedef const unsigned char *cucp;
 const unsigned char alpn_h1[] = "http/1.1";
@@ -28,7 +36,12 @@ TLS_AP tls_get_ap(TLS tls) {
 	cucp dat;
 	uint32_t len;
 	SSL_get0_alpn_selected((SSL *)tls, &dat, &len);
-	printf("getap='%s' len=%u p=%p ps=%p\n", dat, len, dat, data);
+	
+	/* if dat == null, alpn isn't performed, so just use HTTP/1.1 */
+	if (!dat)
+		return TLS_AP_HTTP11;
+	
+	/*printf("getap='%s' len=%u p=%p ps=%p\n", dat, len, dat, data);*/
 	
 	switch (len) {
 		 case 8:
@@ -40,15 +53,12 @@ TLS_AP tls_get_ap(TLS tls) {
 		 		return TLS_AP_HTTP2;
 	}
 	
+	printf("alpn invalid! data=%s\n", dat);
 	return TLS_AP_INVALID;
 }
 
-static int alpn_handle (SSL *ssl,
-                                            const unsigned char **out,
-                                            unsigned char *outlen,
-                                            const unsigned char *in,
-                                            unsigned int inlen,
-                                            void *arg) {
+static int alpn_handle (SSL *ssl, const unsigned char **out, unsigned char *outlen, 
+												const unsigned char *in, unsigned int inlen, void *arg) {
 	/* */
 	if (inlen == 0) {
 		puts("invalid alpn data...");
@@ -56,6 +66,11 @@ static int alpn_handle (SSL *ssl,
 	}
 	
 	TLS_AP ap = TLS_AP_INVALID;
+	
+#ifdef LOG_ALPNS
+	unsigned char allalps[512];
+	size_t allp = 0;
+#endif
 	
 	unsigned char c[256];
 	size_t i, j;
@@ -75,15 +90,25 @@ static int alpn_handle (SSL *ssl,
 			*outlen = len;
 			ap = TLS_AP_HTTP11;
 		} else if (len == sizeof(alpn_h2) - 1 && comp(alpn_h2, c, len) && ap < TLS_AP_HTTP2){
-			*out = alpn_h2;
+			/*out = alpn_h2;
 			*outlen = len;
-			ap = TLS_AP_HTTP2;
+			ap = TLS_AP_HTTP2;*/
 		}
+		
+#ifdef LOG_ALPNS
+		memcpy(allalps+allp, in+i, len);
+		allalps[allp+len] = ' ';
+		allp+=len+1;
+#endif
 		
 		i+=len;
 	}
 	
-	/*printf("ap=%i\n", ap);*/
+	
+#ifdef LOG_ALPNS
+	allalps[allp-1] = 0;
+	printf("ap=%i, all='%s'\n", ap, allalps);
+#endif
 	
 	return SSL_TLSEXT_ERR_OK;
 }
@@ -91,6 +116,9 @@ static int alpn_handle (SSL *ssl,
 int tls_setup(secure_config_t *sconfig) {
 	SSL_load_error_strings();
 	OpenSSL_add_ssl_algorithms();
+	
+	bio_err = BIO_new(BIO_s_file());
+	BIO_set_fp(bio_err, stderr, 0);
 
 	const SSL_METHOD *method;
 
@@ -111,16 +139,16 @@ int tls_setup(secure_config_t *sconfig) {
 		return 0;
 	}
 	
-	/*if (sconfig->chain && SSL_CTX_use_certificate_chain_file(ctx, sconfig->chain) <= 0) {
+	if (sconfig->chain) {
 		FILE *file = fopen(sconfig->chain, "r");
 		X509 *cert = PEM_read_X509(file, NULL, 0, NULL);
 		fclose(file);
-		SSL_CTX_add_extra_chain_cert(ctx, cert);
-		
-		puts("Failed to load certificate chain :(");
-		ERR_print_errors_fp(stderr);
-		return 0;
-	}*/
+		if (!SSL_CTX_add_extra_chain_cert(ctx, cert)) {
+			puts("Failed to load certificate chain :(");
+			ERR_print_errors_fp(stderr);
+			return 0;
+		}
+	}
 
 	if (SSL_CTX_use_PrivateKey_file(ctx, sconfig->key, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
@@ -183,10 +211,21 @@ int tls_setup(secure_config_t *sconfig) {
 	/* set ALPN */
 	SSL_CTX_set_alpn_select_cb(ctx, alpn_handle, NULL);
 	
+	
+	/* OCSP stapling */
+	if (sconfig->ocsp_file) {
+		ocsp_data.file = sconfig->ocsp_file;
+		
+		SSL_CTX_set_tlsext_status_cb(ctx, cert_status_cb);
+		SSL_CTX_set_tlsext_status_arg(ctx, &ocsp_data);
+	}
+	
 	return 1;
 }
 
 void tls_destroy(void) {
+	free(ocsp_data.file);
+	BIO_free(bio_err);
 	SSL_CTX_free(ctx);
 	EVP_cleanup();
 }
@@ -253,5 +292,6 @@ int tls_write_client(void *pssl, const char *data, size_t length) {
 		return 1;
 	
 	printf("[OpenSSL] Failed to write data. Code=%s ssl=%p data=%p len=%zi\n", _get_code((SSL *) pssl, i), pssl, data, length);
+	ERR_print_errors_fp(stderr);
 	return 0;
 }

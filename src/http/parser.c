@@ -68,14 +68,26 @@ int http_parse_method(TLS source, char *dest, size_t size) {
 	return 0;
 }
 
-http_headers_t http_parse_headers(TLS tls) {
-	http_headers_t headers = { 0 };
-	
+void http_parse_headers(TLS tls, http_headers_t headers) {
 	char key_buffer[HTTP_HEADERS_KEY_MAX_LENGTH];
 	char value_buffer[HTTP_HEADERS_VALUE_MAX_LENGTH];
 	
+	headers.count = 0;
+	
 	int read;
-	while ((read = io_read_until(tls, key_buffer, ':', HTTP_HEADERS_KEY_MAX_LENGTH)) > 0) {
+	while (1) {
+		if (!tls_read_client_complete(tls, key_buffer, 2))
+			break;
+		
+		if (key_buffer[0] == '\r' && key_buffer[1] == '\n') {
+			/*end of headers*/
+			puts("end of headers");
+			return;
+		}
+		
+		if ((read = io_read_until(tls, key_buffer+2, ':', HTTP_HEADERS_KEY_MAX_LENGTH-2)) <= 0)
+			break;
+		
 		char *key = malloc(sizeof(char) * read);
     if (!key)
       break;
@@ -95,7 +107,7 @@ http_headers_t http_parse_headers(TLS tls) {
     if ((read = io_read_until(tls, value_buffer, '\n', HTTP_HEADERS_KEY_MAX_LENGTH)) <= 0)  {
       free(key);
       headers.error = HTTP_HEADER_PARSE_ERROR_IO;
-      return headers;
+      return;
     }
     
     /* remove the last char; '\r' as the line ends with \r\n */
@@ -115,10 +127,9 @@ http_headers_t http_parse_headers(TLS tls) {
     if (++headers.count > HTTP_HEADERS_MAX) {
       puts("Client sent too many headers!");
       headers.error = HTTP_HEADER_PARSE_ERROR_MAX;
-      return headers;
+			return;
     }
 	}
 	
 	headers.error = HTTP_HEADER_PARSE_ERROR_IO;
-	return headers;
 }

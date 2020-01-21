@@ -26,6 +26,8 @@ typedef struct secure_config_t {
 	const char *cipher_list;
 	/* (nullable) List with enabled ciphers suites. (TLS 1.3 and above) */
 	const char *cipher_suites;
+	
+	char *ocsp_file;
 } secure_config_t;
 
 /**

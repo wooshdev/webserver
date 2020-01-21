@@ -54,11 +54,9 @@ int http_parse_method(TLS, char *, size_t);
  * Parameters:
  *   TLS
  *     The TLS source to be read from.
- * 
- * Return value:
  *   http_headers_t
  *     The headers map.
  */
-http_headers_t http_parse_headers(TLS);
+void http_parse_headers(TLS, http_headers_t);
 
 #endif /* HTTP_PARSER_H */
