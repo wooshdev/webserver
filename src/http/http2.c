@@ -24,6 +24,8 @@ int scomp(const char *a, const char *b, size_t len) {
 	return 1;
 }
 
+static const char *settings_names[] = { NULL, "SETTINGS_HEADER_TABLE_SIZE", "SETTINGS_ENABLE_PUSH", "SETTINGS_MAX_CONCURRENT_STREAMS", "SETTINGS_INITIAL_WINDOW_SIZE", "SETTINGS_MAX_FRAME_SIZE", "SETTINGS_MAX_HEADER_LIST_SIZE" };
+
 static int handle_settings(frame_t *frame, setentry_t *settings) {
 	setentry_t ent;
 	if (frame->length > 0) {
@@ -37,6 +39,8 @@ static int handle_settings(frame_t *frame, setentry_t *settings) {
 				fprintf(stderr, "[H2] Invalid setting identifier: %hu with value %u\n", ent.id, ent.value);
 				return 0;
 			}
+			
+			printf("[\x1b[33mSettings\x1b[0m] \x1b[32mName: %s Value: %u\n", settings_names[ent.id], ent.value);
 			
 			settings[ent.id-1].value = ent.value;
 		}

@@ -9,37 +9,70 @@ typedef struct hnode_t {
 
 static hnode_t *tree = NULL;
 
-size_t huff_get(char *stream, size_t length) {
-	size_t i;
-	hnode_t *current = tree;
+#define LOG_BITS
+
+/**
+ * TODOs:
+ * 1. Ensure no data is read out side of the stream.
+ * 2. Ensure no NULL leafs are taken.
+ * 3. Comply to the rules of RFC7541 Section 5.2 (at the end):
+ * 		"A padding not corresponding to the most significant bits of the code for the 
+ *		 EOS symbol MUST be treated as a decoding error.  A Huffman-encoded string 
+ *		 literal containing the EOS symbol MUST be treated as a decoding error."
+ */
+char *huff_decode(const char *stream, const size_t len) {
+	size_t bp = 0; /* bit position */
+	char *out = malloc(256);
+	out[255] = 0;
 	
-	for (i = 1; i < 8; i++) {
-		printf("%i", !!((stream[0] << (i)) & 0x80));
-	}
-	
-	for (i = 0; i < length*sizeof(size_t)*8; i++) {
-		if (!current->left || !current->right) {
-			if (i != length - 1) {
-				printf("[H2] [Huffman] Warning! End of path found, while index != end; index = %zu\n", i);
-			}
-			return current->value;
-		}
+	/*
+	printf("first 0x%hhX%hhX%hhX%hhX\n", stream[0], stream[1], stream[2], stream[3]);
+  printf("huff_decode len=%zu\n", len);
+  */
+  
+	size_t i = 0;
+	while (bp/8 < len && i < 255) {
+		hnode_t *cur = tree; /* current node */
+		do {
+			size_t p = 7 - (bp % 8);
+			/* bit state */
+			size_t bs = (stream[bp/8] & (1<<p)) >>p;
 		
-		/*printf("bit: %c\n", ((stream[i/8] >> i%8) & 1 ? '1' : '0'));*/
-		if ((stream[i/8] >> (8-i%8)) & 1) {
-			current = current->right;
-			/*puts("go right leaf");*/
-		} else {
-			current = current->left;
-			/*puts("go left leaf");*/
-		}
+#ifdef LOG_BITS
+			printf("(l=%zu bp8=%zu i=%zu bp=%zu", len, bp/8, i, bp);
+			printf(", bap=0x%hhX pos=%zu bs=%zu) bit: %zu\n", stream[bp/8], bp%8, p, bs);
+#endif /* LOG_BITS */
+			
+			if (!cur->left || !cur->right) {
+				out[i++] = cur->value;
+				
+#ifdef LOG_BITS
+				printf(" > value=%zu %c bp=%zu i=%hhX\n", cur->value, cur->value, bp, stream[bp / 8]);
+				printf("%zu> %hhu (%c)\n", i, cur->value, cur->value);
+#endif /* LOG_BITS */
+				
+				break;
+			}
+			
+			if (bs) {
+				cur = cur->right;
+				/*printf("1");*/
+			} else {
+				cur = cur->left;
+				/*printf("0");*/
+			}
+			bp+=1;
+		} while (bp/8 < len && i < 255);
 	}
-	return current->value;
+	/* null-terminate string. */
+	out[i] = 0;
+	printf("bp=%zu strindex=%zu ", bp, bp/8);
+	printf("last bytes used: (0x%hhx is after 0x%hhx)\n", stream[bp/8], stream[(bp/8)-1]);
+	return out;
 }
 
 int huff_setup() {
 	tree = calloc(1, sizeof(hnode_t));
-	tree->value = 666;
 	if (!tree)
 		return 0;
 	
@@ -47,6 +80,7 @@ int huff_setup() {
 	for (i = 0; i < sizeof(http2_huffman_tree) / sizeof (http2_huffman_tree[0]); i++) {
 		const char *text = http2_huffman_tree[i];
 		hnode_t *current = tree;
+		/* setting the value initially to a predefined value. this is useful for debugging.*/
 		current->value = 648;
 		
 		for (j = 0; j < strlen(text); j++) {
@@ -69,11 +103,11 @@ int huff_setup() {
 			}
 		}
 		
-		current->value = i;
+		current->value = i+1;
 	}
 	
-	/*char test[] = { 0x71 };
-	printf("W should appear: '%zu'\n", huff_get(test, sizeof(test)/sizeof(test[0])));*/
+	/*char test[] = { 0x72 };
+	'%c'\n", (char)huff_get(test, 7, 1));*/
 	
 	return 1;
 }

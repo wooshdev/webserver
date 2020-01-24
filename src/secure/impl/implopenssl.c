@@ -37,7 +37,7 @@ TLS_AP tls_get_ap(TLS tls) {
 	uint32_t len;
 	SSL_get0_alpn_selected((SSL *)tls, &dat, &len);
 	
-	/* if dat == null, alpn isn't performed, so just use HTTP/1.1 */
+	/* if dat == null, alpn wasn't performed, so just use HTTP/1.1 */
 	if (!dat)
 		return TLS_AP_HTTP11;
 	
@@ -90,9 +90,9 @@ static int alpn_handle (SSL *ssl, const unsigned char **out, unsigned char *outl
 			*outlen = len;
 			ap = TLS_AP_HTTP11;
 		} else if (len == sizeof(alpn_h2) - 1 && comp(alpn_h2, c, len) && ap < TLS_AP_HTTP2){
-			/*out = alpn_h2;
+			*out = alpn_h2;
 			*outlen = len;
-			ap = TLS_AP_HTTP2;*/
+			ap = TLS_AP_HTTP2;
 		}
 		
 #ifdef LOG_ALPNS
