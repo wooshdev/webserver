@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ * 
+ * This file contains the main functions for HTTP/1.1.
+ */
 #include "http1.h"
 #include <string.h>
 #include "common.h"

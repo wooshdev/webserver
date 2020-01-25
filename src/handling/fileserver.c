@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ *
+ * TODO: Improve code documentation.
+ */
 http_response_t fs_handle(http_handler_t *handler, http_request_t request) {
 	http_response_t response = { 0 };
 

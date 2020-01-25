@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ * 
+ * This file contains Huffman decoding/decompression functions.
+ */
 #include "huffman_table.h"
 
 #include <stddef.h>

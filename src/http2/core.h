@@ -1,4 +1,8 @@
-#ifndef H2_H
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ */
+ #ifndef H2_H
 #define H2_H
 
 #include "../http/common.h"

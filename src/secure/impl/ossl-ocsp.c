@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ *
+ * TODO: Improve code documentation.
+ */
 #include <openssl/ocsp.h>
 #include <openssl/bio.h>
 #include <openssl/safestack.h>
