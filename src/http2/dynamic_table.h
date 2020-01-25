@@ -48,6 +48,12 @@ typedef struct dynamic_table_t {
 	 *  be bigger than the entries inside of it.
 	 */
 	size_t index_last;
+	/**
+	 * The value of SETTINGS_HEADER_TABLE_SIZE. This value MAY 
+	 * be used by the server, but 'size' exceeding this value 
+	 * is incorrect.
+	 */
+	size_t client_max_size;
 } dynamic_table_t;
 
 /**
@@ -128,7 +134,10 @@ lookup_t dynamic_table_get(dynamic_table_t *, size_t);
  *   The key & value supplied to the function will NOT be duplicated,
  *   so the callee MUST ensure these values will NOT be destroyed 
  *   before the EOL of this newly added entry.
+ *
+ * Return Value:
+ *   (boolean) Success status.
  */
-void dynamic_table_add(dynamic_table_t *, char *, char *);
+int dynamic_table_add(dynamic_table_t *, char *, char *);
 
 #endif /* HTTP2_DYNAMIC_TABLE_H */

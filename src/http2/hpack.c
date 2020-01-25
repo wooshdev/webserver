@@ -85,8 +85,10 @@ void handle_headers(frame_t *frame) {
 
 	size_t octets_used = 0;
 	
+	size_t count = 0;
 	for (i = 0; i < packl; i++) {
 		unsigned char c = data[i];
+		count++;
 		/*
 		printf("first_octet=0x%02hhX", c);
 		*/
@@ -201,5 +203,6 @@ void handle_headers(frame_t *frame) {
 			/* dynamic table size update Section 6.3*/
 		}
 	}
+	printf("\nEnd of headers!\n\tpackl: %zu\n\ti: %zu\n\tcount: %zu\n", packl, i, count);
 }
  
