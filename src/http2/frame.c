@@ -1,18 +1,14 @@
-typedef struct {
-	unsigned int length : 24;
-	unsigned char type;
-	unsigned char flags;
-	uint32_t r_s_id;/* r + stream identifier */
-	char *data;
-} frame_t;
-
 /**
- * Description:
- *   Reads a frame.
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
  * 
- * Return Value:
- *   A 'frame *', or NULL if failed.
+ * This file contains function definitions for reading a HTTP/2 frame.
  */
+#include "frame.h"
+#include <stdlib.h>
+#include <string.h>
+#include "constants.h"
+
 frame_t *readfr(TLS tls) {
 	frame_t *f = malloc(sizeof(frame_t));
 	if (!f)
@@ -64,7 +60,7 @@ frame_t *readfr(TLS tls) {
  * Return Value:
  *   (boolean) I/O success status 
  */
-static int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, char *data) {
+int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, char *data) {
 	printf("\x1b[33m[SendFrame] Type: %s\x1b[0m\n", frame_types[(size_t)type]);
 	printf("\x1b[33m`-> length=%u type=%hi flags=0x%hx stream=%u pdata=%p\n\x1b[0m", length, type, flags, stream, data);
 	char *buf = malloc(9 + length);
@@ -89,3 +85,4 @@ static int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t 
 	free(buf);
 	return res;
 }
+ 

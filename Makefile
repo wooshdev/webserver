@@ -11,13 +11,15 @@ LDFLAGS = -pthread `pkg-config --static --libs openssl`
 CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
-SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so bin/http/parser.so bin/http/common.so bin/handling/handlers.so bin/http/http1.so bin/http/http2.so
+HTTP2BINARIES = bin/http2/constants.so bin/http2/dynamic_table.so bin/http2/frame.so bin/http2/hpack.so bin/http2/huffman.so
+SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so bin/http/parser.so bin/http/common.so bin/handling/handlers.so bin/http/http1.so bin/http/http2.so $(HTTP2BINARIES)
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
 	$(CC) $(CFLAGS) -o $@ $< $(SUBBINARIES) $(LDFLAGS)
 bin/build.txt: # a hack to create the bin folder only once
 	mkdir -p bin/handling
 	mkdir -p bin/http
+	mkdir -p bin/http2
 	mkdir -p bin/secure
 	touch bin/build.txt
 bin/config_reader.o: src/configuration/reader.c src/configuration/config.h
@@ -38,11 +40,22 @@ bin/http/parser.so: src/http/parser.c src/http/parser.h bin/io.so src/utils/io.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/http1.so: src/http/http1.c src/http/http1.h bin/http/parser.so
 	$(CC) -o $@ -c $(CFLAGS) $<
-bin/http/http2.so: src/http/http2.c src/http/http2* src/http/huffman.c
+bin/http/http2.so: src/http2/core.c src/http2/core.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/common.so: src/http/common.c src/http/common.h bin/io.so src/utils/io.h 
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/handling/handlers.so: src/handling/handlers.c src/handling/handlers.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+# HTTP/2 Binaries
+bin/http2/constants.so: src/http2/constants.c src/http2/constants.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http2/dynamic_table.so: src/http2/dynamic_table.c src/http2/dynamic_table.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http2/frame.so: src/http2/frame.c src/http2/frame.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http2/hpack.so: src/http2/hpack.c src/http2/hpack.h bin/http2/dynamic_table.so bin/http2/huffman.so
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http2/huffman.so: src/http2/huffman.c src/http2/huffman.h src/http2/huffman_table.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 memtest:
 	valgrind --leak-check=full \

@@ -1,6 +1,17 @@
-/* can't think of anything clever to store these right now, other than as string literals.
- * the problem is that, the length of the bits, and the bits themselve must be stored in a 
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ * 
+ * This file contains symbols describing functions about the dynamic & static tables.
+ */
+
+/**
+ * Can't think of anything clever to store these right now, other than as string literals.
+ * The problem is that, the length of the bits, and the bits themselve must be stored in a 
  * fast but compact format. strings are easy to represent, so i'll do this for now.
+ * 
+ * This table is only used in initialization of the Huffman tree, so only that section may 
+ * take long. (This isn't the case, since I ran a time test.
  */
 const char *http2_huffman_tree[256] = {
 	"1111111111000",

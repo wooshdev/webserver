@@ -20,7 +20,7 @@
 #include "utils/io.h"
 #include "handling/handlers.h"
 #include "http/http1.h"
-#include "http/http2.h"
+#include "http2/core.h"
 
 /* This array is defined by src/http/common.c */
 extern const char *http_common_log_status_names[];

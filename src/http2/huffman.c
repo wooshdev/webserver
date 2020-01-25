@@ -1,4 +1,10 @@
-#include "http2hufftree.c"
+#include "huffman_table.h"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef struct hnode_t {
 	struct hnode_t *left;
@@ -9,7 +15,7 @@ typedef struct hnode_t {
 
 static hnode_t *tree = NULL;
 
-#define LOG_BITS
+/*#define LOG_BITS*/
 
 /**
  * TODOs:
@@ -66,8 +72,10 @@ char *huff_decode(const char *stream, const size_t len) {
 	}
 	/* null-terminate string. */
 	out[i] = 0;
+	#ifdef LOG_BITS
 	printf("bp=%zu strindex=%zu ", bp, bp/8);
 	printf("last bytes used: (0x%hhx is after 0x%hhx)\n", stream[bp/8], stream[(bp/8)-1]);
+	#endif /* LOG_BITS */
 	return out;
 }
 
@@ -111,3 +119,4 @@ int huff_setup() {
 	
 	return 1;
 }
+ 
