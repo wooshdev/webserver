@@ -44,7 +44,7 @@ frame_t *readfr(TLS tls) {
 		return NULL;
 	}
 	
-	printf("\x1b[36mFrame> type=%s (0x%x) length=%u\x1b[0m\n", frame_types[f->type], f->type, f->length);
+	printf("\x1b[36mFrame> type=%s (0x%x) stream=%x length=%u\x1b[0m\n", frame_types[f->type], f->type, f->r_s_id, f->length);
 	
 	return f;
 }

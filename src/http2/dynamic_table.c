@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dynamic_table.h"
+#include "static_table.h"
 
 
 /**
@@ -30,79 +31,6 @@
 #define STATIC_TABLE_STEP_SIZE    2
 #define STATIC_TABLE_INITIAL_SIZE 8
 
-/**
- * Definition:
- *   Appendix A. Static Table Definition
- *
- * Notes:
- *	 Header fields with values are seperated by a '$' character, a.k.a DOLLAR_SIGN.
- */
-#define HTTP2_STATIC_TABLE_SIZE 62
-const char *static_table[] = {
-	NULL,
-	":authority",
-	":method$GET",
-	":method$POST",
-	":path$/",
-	":path$/index.html",
-	":scheme$http",
-	":scheme$https",
-	":status$200",
-	":status$204",
-	":status$206",
-	":status$304",
-	":status$400",
-	":status$404",
-	":status$500",
-	"accept-charset",
-	"accept-encoding$gzip, deflate",
-	"accept-language",
-	"accept-ranges",
-	"accept",
-	"access-control-allow-origin",
-	"age",
-	"allow",
-	"authorization",
-	"cache-control",
-	"content-disposition",
-	"content-encoding",
-	"content-language",
-	"content-length",
-	"content-location",
-	"content-range",
-	"content-type",
-	"cookie",
-	"date",
-	"etag",
-	"expect",
-	"expires",
-	"from",
-	"host",
-	"if-match",
-	"if-modified-since",
-	"if-none-match",
-	"if-range",
-	"if-unmodified-since",
-	"last-modified",
-	"link",
-	"location",
-	"max-forwards",
-	"proxy-authenticate",
-	"proxy-authorization",
-	"range",
-	"referer",
-	"refresh",
-	"retry-after",
-	"server",
-	"set-cookie",
-	"strict-transport-security",
-	"transfer-encoding",
-	"user-agent",
-	"vary",
-	"via",
-	"www-authenticate"
-};
-
 dynamic_table_t *dynamic_table_create(size_t client_max_size) {
 	dynamic_table_t *table = malloc(sizeof(dynamic_table_t));
 	table->size = STATIC_TABLE_INITIAL_SIZE;
@@ -113,7 +41,8 @@ dynamic_table_t *dynamic_table_create(size_t client_max_size) {
 }
 
 void dynamic_table_destroy(dynamic_table_t *table) {
-	if (table->entries && table->size > 0) {
+	printf("Destroying the dynamic table. Size: %zu, index_last: %zu\n", table->size, table->index_last);
+	if (table->entries && table->size > 0 && table->index_last != table->client_max_size) {
 		size_t i;
 		for (i = 0; i < table->index_last + 1; i++) {
 			free(table->entries[i]->key);

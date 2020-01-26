@@ -9,7 +9,9 @@
 #define HTTP2_HPACK_H
 
 #include <stddef.h>
+#include "core.h"
 #include "frame.h"
+#include "../http/header_list.h"
 
 /**
  * Description:
@@ -59,7 +61,6 @@ char *dup_str(const char *, size_t);
  */
 size_t parse_int(const char *, size_t *, size_t);
 
-
 /**
  * Description:
  *	 Parses a header frame as per RFC 7541.
@@ -67,10 +68,12 @@ size_t parse_int(const char *, size_t *, size_t);
  * Parameters:
  *	 frame_t *
  *     The frame, the source of the header data.
+ *   dynamic_table_t *
+ *     The dynamic table to store indexed headers in.
  *
  * Return Value:
  *	 Nothing yet, this will change, though.
  */
-void handle_headers(frame_t *);
+void handle_headers(frame_t *, dynamic_table_t *, http_header_list_t *);
 
 #endif /* HTTP2_HPACK_H */

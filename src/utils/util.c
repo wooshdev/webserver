@@ -39,8 +39,13 @@ int strswitch(const char *in, const char **list, size_t size, int case_flag) {
 }
 
 char *strdup(const char *src) {
-	char *dst = malloc(strlen (src) + 1);
-	if (dst == NULL) return NULL;
-	strcpy(dst, src);
-	return dst;
+	size_t length = strlen(src);
+	char *copy = malloc((length+1) * sizeof(char));
+	copy[length] = 0;
+	if (!copy)
+		return NULL;
+	size_t i;
+	for (i = 0; i < length; i++)
+		copy[i] = src[i];
+	return copy;
 }

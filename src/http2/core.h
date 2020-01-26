@@ -5,11 +5,20 @@
  #ifndef H2_H
 #define H2_H
 
+#include <stdint.h>
+#include <stddef.h>
+
 #include "../http/common.h"
 #include "../secure/tlsutil.h"
 
 http_request_t http2_parse(TLS);
 
 int http2_setup();
+
+/* settings entry (RFC 7540 Section 6.5.1)*/
+typedef struct {
+	uint16_t id;	/* identifier */
+	uint32_t value;
+} setentry_t;
 
 #endif /*H2_H*/

@@ -8,6 +8,8 @@
 #include "dynamic_table.h"
 #include "hpack.h"
 #include "huffman.h"
+#include "../http/header_list.h"
+#include "../utils/util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +64,7 @@ char *parse_string(const char *data, size_t *octets_used, size_t *length) {
 	return NULL;
 }
 
-void handle_headers(frame_t *frame) {
+void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_list_t *list) {
 	puts("\x1b[93m>>> \x1b[94mHPACK\x1b[93m <<<\x1b[0m");
 	size_t offset = 0;
 	uint32_t padding = frame->flags & FLAG_PADDED ? frame->data[offset++] : 0;
@@ -95,36 +97,53 @@ void handle_headers(frame_t *frame) {
 		
 		if (c > 127) {
 			puts("\tIndexed Header Field");
-			
 			size_t pos = parse_int(data+i, &octets_used, 7);
 			
-			const char *statentry = static_table[pos];
-			char *sign_position = strchr(statentry, '$');
-			
-			if (!sign_position) {
-				printf("\nsign_entry is null!\nfield=%s\n\n", statentry);
+			lookup_t result = dynamic_table_get(dynamic_table, pos);
+			const char *indexed_name = result.static_e ? result.static_e : result.dynamic->key;
+			if (!indexed_name) {
+				goto error_label;
 			}
 			
-			size_t key_size = (sign_position - statentry) + 1;
-			size_t value_size = strlen(statentry) - (sign_position - statentry) + 1;
-			
-			char *key = malloc(sizeof(char) * key_size);
-			char *value = malloc(sizeof(char) * value_size);
-			
-			strcpy(key, statentry);
-			key[key_size - 1] = 0;
-			
-			strcpy(value, sign_position+1);
-			value[value_size - 1] = 0;
-			
-			/*
-			printf("DBG_DAT statentry=%p, sign_position=%p, key=%p value=%p knt=%zi vnt=%zi\n", statentry, sign_position, key, value, statentry - sign_position, sign_position - statentry);
-			*/
-			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
-			
-			free(key);
-			free(value);
-			
+			char *key, *value;
+			if (result.static_e) {
+				char *sign_position = strchr(indexed_name, '$');
+				if (!sign_position) {
+					printf("\nsign_entry is null!\nfield=%s\n\n", indexed_name);
+					goto error_label;
+				}
+				
+				size_t key_size = (sign_position - indexed_name) + 1;
+				size_t value_size = strlen(indexed_name) - (sign_position - indexed_name) + 1;
+				
+				key = malloc(sizeof(char) * key_size);
+				value = malloc(sizeof(char) * value_size);
+				
+				strcpy(key, indexed_name);
+				key[key_size - 1] = 0;
+				
+				strcpy(value, sign_position+1);
+				value[value_size - 1] = 0;
+				
+				printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
+				
+				/* even though we got the string from the static table, 
+				   we are duplicating it so it isn't cached */
+				http_header_list_add(list, key, value, HTTP_HEADER_NOT_CACHED, pos);
+			} else if (result.dynamic) {
+				/**
+				 * The dynamic table SHOULD NOT be destroyed before these pointers are out of use,
+				 * because otherwise these pointers will point to disowned data.
+				 */
+				key = result.dynamic->key;
+				value = result.dynamic->value;
+				
+				printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
+				http_header_list_add(list, key, value, HTTP_HEADER_CACHED, pos);
+			} else {
+				printf("Static+Dynamic table out-of-bounds error for pos=%zu\n", pos);
+				goto error_label;
+			}
 		} else if (c > 64) {
 			/* this value should be added to the list,
 			 but also added to the dynamic table (this is like caching headers) */
@@ -132,18 +151,20 @@ void handle_headers(frame_t *frame) {
 			puts("\tLiteral Header Field with Incremental Indexing -- Indexed Name");
 			size_t length = 0;
 			size_t pos = parse_int(data + i, &octets_used, 6);
-			/*
-			printf("\t> pos=%zu a.k.a. key='%s'\n", pos, static_table[pos]);
-			*/
 			i += octets_used;
+			
+			/** Get the key ("name") out of either the static or dynamic table */
+			lookup_t result = dynamic_table_get(dynamic_table, pos);
+			const char *indexed_name = result.static_e ? result.static_e : result.dynamic->key;
+			if (!indexed_name) {
+				goto error_label;
+			}
 
 			char *value = parse_string(data + i, &octets_used, &length);
-			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", static_table[pos], value);
-			free(value);
-			
-			/*
-			printf("[Change] (W/Incr->IndexedName) Changing i: currently=%zu octets_used=%zu new_val=%zu (i += octets_used - 1)\n", i, octets_used, (i + octets_used - 1));
-			*/
+			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", indexed_name, value);
+			char *key = strdup(indexed_name);
+			dynamic_table_add(dynamic_table, key, value);
+			http_header_list_add(list, key, value, HTTP_HEADER_CACHED, pos);
 			
 			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
 			
@@ -157,31 +178,35 @@ void handle_headers(frame_t *frame) {
 			i+=1;
 			char *hkey = parse_string(data+i, &octets_used, &length);
 			
-			/*
-			printf("[Change] (W/Incr->NewName) Changing i: currently=%zu octets_used=%zu new_val=%zu (i += octets_used)\n", i, octets_used, (i + octets_used));
-			*/
-			
 			i += octets_used;
 			char *hval = parse_string(data+i, &octets_used, &length);
-			/*
-			printf("[Change] (W/Incr->NewName) Changing i: currently=%zu octets_used=%zu new_val=%zu (i += octets_used - 1)\n", i, octets_used, (i + octets_used - 1));
-			*/
+			
 			printf("Bytes: 0x%hhx 0x%hhx 0x%hhx\n", data[i+octets_used-2], data[i+octets_used-1], data[i+octets_used]);
 			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
 			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", hkey, hval);
-			free(hkey);
-			free(hval);
+			
+			dynamic_table_add(dynamic_table, hkey, hval);
+			http_header_list_add(list, hkey, hval, HTTP_HEADER_CACHED, 0);
+			
 		} else if (c > 0 && c < 16) {
 			puts("\tLiteral Header Field without Indexing -- Indexed Name");
 			
 			size_t length = 0;
 			size_t pos = parse_int(data+i, &octets_used, 6);
+			
+			/** Get the key ("name") out of either the static or dynamic table */
+			lookup_t result = dynamic_table_get(dynamic_table, pos);
+			const char *indexed_name = result.static_e ? result.static_e : result.dynamic->key;
+			if (!indexed_name) {
+				goto error_label;
+			}
 
-			printf("\x1b[33m [Header] %s (pos=%zu)\n", static_table[pos], pos);
+			printf("\x1b[33m [Header] %s (pos=%zu)\n", indexed_name, pos);
 			i += octets_used;
 
-			char *hdata = parse_string(data+i, &octets_used, &length);
-			free(hdata);
+			char *value = parse_string(data+i, &octets_used, &length);
+			printf("\x1b[33m [Header] Key='%s' Value='%s' (pos=%zu)\n", indexed_name, value, pos);
+			http_header_list_add(list, indexed_name, value, HTTP_HEADER_NAME_CACHED, pos);
 			i += octets_used - 1;
 			
 		} else if (c == 0) {
@@ -193,16 +218,31 @@ void handle_headers(frame_t *frame) {
 			} else {
 				printf("\t\tplain: 0x%02x\n", val_len&0xEF);
 			}
+			/*http_header_list_add(list, indexed_name, value, HTTP_HEADER_NAME_CACHED, pos);*/
 		} else if (c > 32 && c < 64) {
+			/* dynamic table size update Section 6.3*/
 			puts("\tDynamic Table Size Update");
 			size_t size = parse_int(data+i, &octets_used, 5);
 			i += octets_used -1;
 			printf("\t> New size: %zu\n", size);
 		} else {
 			printf("\tother? i=%hhu\n", c);
-			/* dynamic table size update Section 6.3*/
 		}
 	}
 	printf("\nEnd of headers!\n\tpackl: %zu\n\ti: %zu\n\tcount: %zu\n", packl, i, count);
+	printf("Flag set: %s\n", (frame->flags & FLAG_END_HEADERS ? "true" : "false"));
+	
+	printf("DynamicTable (index_last=%zu size=%zu client_max_size=%zu)\n", dynamic_table->index_last, dynamic_table->size, dynamic_table->client_max_size);
+	if (dynamic_table->index_last != dynamic_table->client_max_size) {
+		for (i = 0; i < dynamic_table->index_last+1; i++) {
+			printf("> DynamicTable (%zu) Key='%s' Value='%s'\n", i, dynamic_table->entries[i]->key, dynamic_table->entries[i]->value);
+		}
+	}
+	
+	return;
+	
+error_label:
+	puts("Parsing error encountered.");
+	return;
 }
  
