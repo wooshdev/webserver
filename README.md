@@ -10,7 +10,6 @@ Here is a quick summary of some of the features *supported* by this server (ital
 * _HTTP/3_
 * _Caching Mechanisms_
 * _Automatic Certificates_
-* _
 
 ## Status
 This project is currently in a very early stage, and a lot of unit/fuzztesting has to be done before actual production. This is a hobbyist project, and any contributions are welcome.
