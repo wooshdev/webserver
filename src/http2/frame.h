@@ -54,6 +54,6 @@ frame_t *readfr(TLS);
  * Return Value:
  *   (boolean) I/O success status 
  */
-int send_frame(TLS, uint32_t length, char type, char flags, uint32_t stream, char *data);
+int send_frame(TLS, uint32_t length, char type, char flags, uint32_t stream, const char *data);
 
 #endif /* HTTP2_FRAME_H */

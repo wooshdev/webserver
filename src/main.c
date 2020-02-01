@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include "server.h"
 #include "configuration/config.h"
@@ -61,6 +63,9 @@ int main(int argc, char **argv) {
   
 	act.sa_sigaction = catch_signal;
 	act.sa_flags = SA_SIGINFO;
+  
+  /* disable SIGPIPE signals since client sockets cause them. */
+  signal(SIGPIPE, SIG_IGN);
   
   if (-1 == sigaction(SIGINT, &act, NULL)) {
     fputs("Failed to set signal handler!\n", stderr);
@@ -162,6 +167,10 @@ int main(int argc, char **argv) {
 			perror("Client acceptance failure");
 			exit(EXIT_FAILURE);
 		}
+    
+    /* enable TCP_NODELAY */
+    int one = 1;
+    setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
 
 		TLS tls = tls_setup_client(client);
 		http_request_t *request = NULL;

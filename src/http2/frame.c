@@ -16,6 +16,7 @@ frame_t *readfr(TLS tls) {
 	unsigned char parts[3];
 	if (!tls_read_client_complete(tls, (char*)parts, 3)) {
 		free(f);
+		puts("0");
 		return NULL;
 	}
 	f->length = (parts[0]<<16) | (parts[1] << 8) | parts[2];
@@ -38,7 +39,7 @@ frame_t *readfr(TLS tls) {
 		return NULL;
 	}
 	
-	if (!tls_read_client_complete(tls, f->data, f->length)) {
+	if (f->length && !tls_read_client_complete(tls, f->data, f->length)) {
 		free(f->data);
 		free(f);
 		return NULL;
@@ -60,9 +61,14 @@ frame_t *readfr(TLS tls) {
  * Return Value:
  *   (boolean) I/O success status 
  */
-int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, char *data) {
-	printf("\x1b[33m[SendFrame] Type: %s\x1b[0m\n", frame_types[(size_t)type]);
+/*#define FRAME_SEND_DEBUG*/
+int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, const char *data) {
+	printf("[\x1b[33mSendFrame\x1b[0m] \x1b[33mType: %s\x1b[0m\n", frame_types[(size_t)type]);
+  
+  #ifdef FRAME_SEND_DEBUG
 	printf("\x1b[33m`-> length=%u type=%hi flags=0x%hx stream=%u pdata=%p\n\x1b[0m", length, type, flags, stream, data);
+  #endif 
+  
 	char *buf = malloc(9 + length);
 	if (!buf) return 0;
 	buf[0] = length >> 16;
@@ -75,12 +81,20 @@ int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream,
 	buf[7] = stream >> 8;
 	buf[8] = stream & 0x000000FF;
 	
+  #ifdef FRAME_SEND_DEBUG
+  printf("%i %i\n", !!(data), !!(length));
+  #endif
+  
+	if (data && length) {
+		memcpy(buf+9, data, length);
+  }
+  
+  #ifdef FRAME_SEND_DEBUG
 	size_t j;
 	for (j = 0; j < 9 + length; j++)
-		printf("\x1b[33m> (%zu) 0x%x\n\x1b[0m", j, buf[j]);
-	
-	if (data && !length)
-		memcpy(buf+9, data, length);
+		printf("\x1b[33m> (%zu) 0x%hhx\n\x1b[0m", j, buf[j]);
+  #endif
+  
 	int res = tls_write_client(tls, buf, 9 + length);
 	free(buf);
 	return res;

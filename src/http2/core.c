@@ -13,6 +13,7 @@
 #include "../utils/io.h"
 #include "../utils/util.h"
 #include "../http/header_list.h"
+#include "../http/response_headers.h"
 
 #include "constants.h"
 #include "dynamic_table.h"
@@ -31,8 +32,9 @@ int scomp(const char *a, const char *b, size_t len) {
 
 static const char *settings_names[] = { NULL, "SETTINGS_HEADER_TABLE_SIZE", "SETTINGS_ENABLE_PUSH", "SETTINGS_MAX_CONCURRENT_STREAMS", "SETTINGS_INITIAL_WINDOW_SIZE", "SETTINGS_MAX_FRAME_SIZE", "SETTINGS_MAX_HEADER_LIST_SIZE" };
 
-static int handle_settings(frame_t *frame, setentry_t *settings) {
+static H2_ERROR handle_settings(frame_t *frame, setentry_t *settings) {
 	setentry_t ent;
+  printf("[\x1b[33mSettings\x1b[0m] \x1b[32mSize: %u Flags: 0x%x stream_id: 0x%x\n", frame->length, frame->flags, frame->r_s_id & 0xEF);
 	if (frame->length > 0) {
 		size_t i;
 		for (i = 0; i < frame->length / 6; i++) {
@@ -42,8 +44,16 @@ static int handle_settings(frame_t *frame, setentry_t *settings) {
 			
 			if (ent.id >= HTTP2_SETTINGS_COUNT) {
 				fprintf(stderr, "[H2] Invalid setting identifier: %hu with value %u\n", ent.id, ent.value);
-				return 0;
+				return H2_PROTOCOL_ERROR;
 			}
+			
+			#ifdef _NOT_DEFINED
+			uint32_t max = 2147483647;
+			if (ent.id == HTTP2_SETTINGS_INITIAL_WINDOW_SIZE && ent.value > max) {
+				fprintf(stderr, "[H2] Invalid value for initial window size: %u, max: %u\n", ent.value, max);
+				return H2_FLOW_CONTROL_ERROR;
+			}
+			#endif
 			
 			printf("[\x1b[33mSettings\x1b[0m] \x1b[32mName: %s Value: %u\n", settings_names[ent.id], ent.value);
 			
@@ -51,7 +61,7 @@ static int handle_settings(frame_t *frame, setentry_t *settings) {
 		}
 	}
 	
-	return 1;
+	return H2_NO_ERROR;
 }
 
 /**
@@ -62,8 +72,19 @@ static int handle_settings(frame_t *frame, setentry_t *settings) {
  *   (boolean) success status
  */
 static int send_settings(TLS tls) {
-	/* for now we just acknowledge the sent settings */
-	return send_frame(tls, 0, FRAME_SETTINGS, 0x1, 0, NULL);
+	char *buf = malloc(6);
+	buf[0] = 0x00;
+	buf[1] = 0x04; /* SETTINGS_INITIAL_WINDOW_SIZE */
+	buf[2] = 0x00;
+	buf[3] = 0xBF;
+	buf[4] = 0x00;
+	buf[5] = 0x01;
+	
+	return send_frame(tls, 6, FRAME_SETTINGS, 0x0, 0x0, buf);
+}
+
+static int send_settings_ack(TLS tls) {
+	return send_frame(tls, 0, FRAME_SETTINGS, FLAG_ACK, 0x0, NULL);
 }
 
 static void send_rst(TLS tls, uint32_t error) {
@@ -71,18 +92,68 @@ static void send_rst(TLS tls, uint32_t error) {
 	send_frame(tls, 4, FRAME_RST_STREAM, 0, 0, (char *)&error);
 }
 
-static const char *simple = "Hello there!";
+static void send_goaway(TLS tls, uint32_t error, uint32_t stream) {
+  char *buf = malloc(8);
+  buf[0] = (stream >> 24) & 0xFF;
+  buf[1] = (stream >> 16) & 0xFF;
+  buf[2] = (stream >> 8) & 0xFF;
+  buf[3] = stream & 0xFF;
+  buf[4] = (error >> 24) & 0xFF;
+  buf[5] = (error >> 16) & 0xFF;
+  buf[6] = (error >> 8) & 0xFF;
+  buf[7] = error & 0xFF;
+  send_frame(tls, 8, FRAME_GOAWAY, 0x0, 0x0, buf);
+  free(buf);
+}
+
+static void write_str(char *data, const char *str, size_t *bp) {
+  size_t j, length = strlen(str);
+  data[(*bp) / 8] = length & 0xEF;
+  (*bp) += 8;
+  for (j = 0; j < length; j++) {
+    data[(*bp) / 8] = str[j];
+    (*bp) += 8;
+  }
+}
+
+static const char *simple = "OK";
 
 static void handle_simple(TLS tls, frame_t *frame) {
-	http_header_list_t *list = http_create_header_list();
-	http_header_list_add(list, ":status", strdup("200"), 8, HTTP_HEADER_CACHED);
-	http_header_list_add(list, ":content-length", strdup("12"), 28, HTTP_HEADER_CACHED);
-	http_header_list_add(list, "server", strdup("TheWooshServer"), 74, HTTP_HEADER_CACHED);
+	http_response_headers_t *list = http_create_response_headers(3);
+	http_response_headers_add(list, HTTP_RH_STATUS_200, NULL);
+	http_response_headers_add(list, HTTP_RH_CONTENT_LENGTH, "2");
+	http_response_headers_add(list, HTTP_RH_SERVER, "TheWooshServer");
 	
 	char *headers = calloc(1, 256);
 	size_t i, bp = 0;
+	http_response_header_t *header;
+  printf(" Header count: %zu\n", list->count);
 	for (i = 0; i < list->count; i++) {
 		/*headers[bp / 8] &= (1 << i);*/
+		header = list->headers[i];
+		switch (header->name) {
+			case HTTP_RH_CONTENT_LENGTH:
+				/* 0x92 = 01011100 */
+        headers[bp / 8] = 0x92;
+        bp += 8;
+        write_str(headers, header->value, &bp);
+				break;
+			case HTTP_RH_SERVER:
+        /* 0x76 = 01110110 */
+        /*put_bits(headers, 0x76, bp);*/
+        headers[bp / 8] = 0x76;
+        bp += 8;
+        write_str(headers, header->value, &bp);
+				break;
+			case HTTP_RH_STATUS_200:
+				/* 0x88 = 10001000 */
+        headers[bp / 8] = 0x88;
+        bp += 8;
+				break;
+      default:
+        printf("(?) Unknown header type: %u\n", header->name);
+        break;
+		}
 	}
 	size_t bpleft = bp % 8;
 	if (bpleft != 0) {
@@ -91,14 +162,14 @@ static void handle_simple(TLS tls, frame_t *frame) {
 			headers[bp/8] &= (1 << i);
 		bp += bpleft;
 	}
-	http_destroy_header_list(list);
+	http_response_headers_destroy(list);
 	
+  printf(" > sending HEADERS frame, bp=%zu len=%zu\n", bp, bp/8);
 	send_frame(tls, bp / 8, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
 	
-	char *data = strdup(simple);
-	send_frame(tls, strlen(simple), FRAME_DATA, 0, frame->r_s_id, data);
-	free(data);
+  printf(" > sending DATA frame, strlen=%zu\n", strlen(simple));
+	send_frame(tls, strlen(simple), FRAME_DATA, 0, frame->r_s_id, simple);
 }
 
 http_request_t http2_parse(TLS tls) {
@@ -136,17 +207,38 @@ http_request_t http2_parse(TLS tls) {
 	http_header_list_t *headers = NULL;
 	size_t i;
 	
-	if (settings) {
+	send_settings(tls);
+	/* send WINDOW_UPDATE frame */{
+		uint32_t size = 0x7FFF0000;
+		send_frame(tls, 4, FRAME_WINDOW_UPDATE, 0x0, 0x0, (char *)&size);
+	}
+	
+	if (frame) {
 		if (frame->type != 0x4) {
 			PRTERR("[H2] Protocol error: first frame wasn't a settings frame!");
+      send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
+			goto end;
+		}
+    
+		/* SETTINGS frames should have a length of a multiple of 6 octets. */
+		if (frame->length % 6 != 0) {
+			puts("\x1b[33m > Invalid settings frame (length error).\x1b[0m");
+			send_goaway(tls, H2_FRAME_SIZE_ERROR, 0x0);
+			goto end;
+		}
+	
+		H2_ERROR result = handle_settings(frame, settings);
+		free(frame->data);
+		free(frame);
+    
+		if (result != H2_NO_ERROR) {
+			puts("\x1b[33m > Invalid settings frame.\x1b[0m");
+			send_goaway(tls, H2_FRAME_SIZE_ERROR, 0x0);
 			goto end;
 		}
 		
-		handle_settings(frame, settings);
-		free(frame->data);
-		free(frame);
+		send_settings_ack(tls);
 		
-		send_settings(tls);
 		
 		headers = http_create_header_list();
 		
@@ -205,6 +297,22 @@ http_request_t http2_parse(TLS tls) {
 					}
 					goto end;
 					break;
+				case FRAME_SETTINGS:
+					if (!(frame->flags & FLAG_ACK)) {
+						send_settings_ack(tls);
+					}
+					break;
+				case FRAME_PING:
+					/* PING frames should have a length of 8 octets. */
+					if (frame->length != 8) {
+						puts("\x1b[33m > Invalid ping frame (length error).\x1b[0m");
+						send_goaway(tls, H2_FRAME_SIZE_ERROR, 0x0);
+						goto end;
+					}
+					if (!(frame->flags & FLAG_ACK)) {
+						send_frame(tls, 8, FRAME_PING, FLAG_ACK, 0x0, frame->data);
+					}
+					break;
 				case FRAME_GOAWAY:
 					printf("\x1b[31m > GOAWAY ErrorCode=%s\x1b[0m\n", error_codes[u32(frame->data+4)]);
 					break;
@@ -222,6 +330,7 @@ http_request_t http2_parse(TLS tls) {
 						goto end;
 					}
 					printf(" > Size Increment: 0x%X or 0x%X = %u %u\n", u32(frame->data), wsi, u32(frame->data), wsi);
+					printf(" > Additional data: a=0x%hhx b=0x%hhx c=0x%hhx d=0x%hhx\n", frame->data[0], frame->data[1], frame->data[2], frame->data[3]);
 					break;
 				case FRAME_CONTINUATION:
 					switch (previous_type) {
@@ -234,7 +343,7 @@ http_request_t http2_parse(TLS tls) {
 					}
 					break;
 				default:
-					puts("\x1b[31m > Type unknown.\x1b[0m");
+					puts("\x1b[31m > Type unknown (the frame is ignored without any consequence(s)).\x1b[0m");
 					break;
 			}
 			
@@ -242,6 +351,7 @@ http_request_t http2_parse(TLS tls) {
 			previous_type = frame->type;
 			free(frame);
 		}
+    printf("\x1b[32mEnd of frame stream.\n\x1b[0m");
 	} else {
 		PRTERR("I/O failure for settings frame.");
 	}

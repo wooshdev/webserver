@@ -19,6 +19,6 @@ const char *preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /* util functions */
 uint32_t u32(const char *arr) {
-	return (arr[0] << 24) | (arr[1] << 16) | (arr[2] << 8) | arr[3];
+	return ((arr[0] & 0xFF) << 24) | ((arr[1] & 0xFF) << 16) | ((arr[2] & 0xFF) << 8) | (arr[3] & 0xFF);
 }
  
