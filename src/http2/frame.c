@@ -9,30 +9,48 @@
 #include <string.h>
 #include "constants.h"
 
-frame_t *readfr(TLS tls) {
+frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
 	frame_t *f = malloc(sizeof(frame_t));
 	if (!f)
 		return NULL;
-	unsigned char parts[3];
-	if (!tls_read_client_complete(tls, (char*)parts, 3)) {
+	char *parts = calloc(4, sizeof(char));
+
+	if (!tls_read_client_complete(tls, parts, 3)) {
 		free(f);
 		puts("0");
 		return NULL;
 	}
-	f->length = (parts[0]<<16) | (parts[1] << 8) | parts[2];
+	
+	f->length = ((parts[0] & 0xFF) << 16) | ((parts[1] & 0xFF)  << 8) | (parts[2] & 0xFF);
+	
+	if (f->length > max_size) {
+		printf("\x1b[36mFrame> \x1b[33mMaxSizeExceedError: max=%u length=%u\n", max_size, f->length);
+		*error = H2_FRAME_SIZE_ERROR;
+		/*free(f);
+		return NULL;*/
+	}
 	
 	if (!tls_read_client_complete(tls, (char *)&f->type, sizeof(f->type))) {
 		free(f);
 		return NULL;
 	}
+	
+	if (f->length > max_size) {
+		printf("\x1b[36mFrame> type=%s (0x%x) (Error)\x1b[0m\n", frame_types[f->type], f->type);
+		free(f);
+		return NULL;
+	}
+	
 	if (!tls_read_client_complete(tls, (char *)&f->flags, sizeof(f->flags))) {
 		free(f);
 		return NULL;
 	}
-	if (!tls_read_client_complete(tls, (char *)&f->r_s_id, sizeof(f->r_s_id))) {
+	
+	if (!tls_read_client_complete(tls, parts, 4)) {
 		free(f);
 		return NULL;
 	}
+	f->r_s_id = u32(parts);
 	
 	if (!(f->data = malloc(sizeof(char) * f->length))) {
 		free(f);
@@ -47,6 +65,7 @@ frame_t *readfr(TLS tls) {
 	
 	printf("\x1b[36mFrame> type=%s (0x%x) stream=%x length=%u\x1b[0m\n", frame_types[f->type], f->type, f->r_s_id, f->length);
 	
+	free(parts);
 	return f;
 }
 
@@ -63,7 +82,7 @@ frame_t *readfr(TLS tls) {
  */
 /*#define FRAME_SEND_DEBUG*/
 int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, const char *data) {
-	printf("[\x1b[33mSendFrame\x1b[0m] \x1b[33mType: %s\x1b[0m\n", frame_types[(size_t)type]);
+	printf("[\x1b[33mSendFrame\x1b[0m] \x1b[33mType: %s Stream: 0x%x\x1b[0m\n", frame_types[(size_t)type], stream);
   
   #ifdef FRAME_SEND_DEBUG
 	printf("\x1b[33m`-> length=%u type=%hi flags=0x%hx stream=%u pdata=%p\n\x1b[0m", length, type, flags, stream, data);

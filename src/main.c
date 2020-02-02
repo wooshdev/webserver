@@ -51,28 +51,25 @@ static int sock;
 REQUEST_LOG_TYPE request_log_type = REQUEST_LOG_MINIMAL;
 
 static void catch_signal(int signo, siginfo_t *info, void *context) {
-  if (socket_initialized) {
+  if (signo == SIGINT && socket_initialized) {
     close(sock);
   }
 }
 
 int main(int argc, char **argv) {
-  struct sigaction act;
-  memset(&act, 0, sizeof(struct sigaction));
+	struct sigaction act;
+	memset(&act, 0, sizeof(struct sigaction));
 	sigemptyset(&act.sa_mask);
   
 	act.sa_sigaction = catch_signal;
 	act.sa_flags = SA_SIGINFO;
-  
-  /* disable SIGPIPE signals since client sockets cause them. */
-  signal(SIGPIPE, SIG_IGN);
-  
-  if (-1 == sigaction(SIGINT, &act, NULL)) {
-    fputs("Failed to set signal handler!\n", stderr);
-    perror("info");
+
+	if (sigaction(SIGINT, &act, NULL) == -1 || sigaction(SIGPIPE, &act, NULL) == -1) {
+		fputs("Failed to set signal handler!\n", stderr);
+		perror("info");
 		exit(EXIT_FAILURE);
 	}
-	
+  
 	if (!http2_setup()) {
 		fputs("Failed to setup HTTP/2!\n", stderr);
 		return EXIT_FAILURE;
@@ -167,10 +164,10 @@ int main(int argc, char **argv) {
 			perror("Client acceptance failure");
 			exit(EXIT_FAILURE);
 		}
-    
-    /* enable TCP_NODELAY */
-    int one = 1;
-    setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
+		
+		/* enable TCP_NODELAY */
+		int one = 1;
+		setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
 
 		TLS tls = tls_setup_client(client);
 		http_request_t *request = NULL;

@@ -20,6 +20,7 @@
 #include "frame.h"
 #include "hpack.h"
 #include "huffman.h"
+#include "stream.h"
 
 /* string compare with length */
 int scomp(const char *a, const char *b, size_t len) {
@@ -88,88 +89,118 @@ static int send_settings_ack(TLS tls) {
 }
 
 static void send_rst(TLS tls, uint32_t error) {
-	PRTERR("[!] Sending RST_STREAM frame!");
+	printf("[\x1b[33m[!] Sending RST_STREAM frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
 	send_frame(tls, 4, FRAME_RST_STREAM, 0, 0, (char *)&error);
 }
 
 static void send_goaway(TLS tls, uint32_t error, uint32_t stream) {
-  char *buf = malloc(8);
-  buf[0] = (stream >> 24) & 0xFF;
-  buf[1] = (stream >> 16) & 0xFF;
-  buf[2] = (stream >> 8) & 0xFF;
-  buf[3] = stream & 0xFF;
-  buf[4] = (error >> 24) & 0xFF;
-  buf[5] = (error >> 16) & 0xFF;
-  buf[6] = (error >> 8) & 0xFF;
-  buf[7] = error & 0xFF;
-  send_frame(tls, 8, FRAME_GOAWAY, 0x0, 0x0, buf);
-  free(buf);
+	printf("[\x1b[33m[!] Sending GOWAY frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
+	char *buf = malloc(8);
+	buf[0] = (stream >> 24) & 0xFF;
+	buf[1] = (stream >> 16) & 0xFF;
+	buf[2] = (stream >> 8) & 0xFF;
+	buf[3] = stream & 0xFF;
+	buf[4] = (error >> 24) & 0xFF;
+	buf[5] = (error >> 16) & 0xFF;
+	buf[6] = (error >> 8) & 0xFF;
+	buf[7] = error & 0xFF;
+	send_frame(tls, 8, FRAME_GOAWAY, 0x0, 0x0, buf);
+	free(buf);
 }
 
-static void write_str(char *data, const char *str, size_t *bp) {
-  size_t j, length = strlen(str);
-  data[(*bp) / 8] = length & 0xEF;
-  (*bp) += 8;
-  for (j = 0; j < length; j++) {
-    data[(*bp) / 8] = str[j];
-    (*bp) += 8;
-  }
+static void write_str(char *data, const char *str, size_t *pos) {
+	size_t j, length = strlen(str);
+	printf("String length: 0x%zx or %zu\n", length, length);
+	data[(*pos)] = length;
+	
+	(*pos) += 1;
+	for (j = 0; j < length; j++) {
+		data[(*pos) + j] = str[j];
+	}
+	(*pos) += j;
 }
 
-static const char *simple = "OK";
+static const char *simple = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This is sent via HTTP/2!</h1></body>";
 
 static void handle_simple(TLS tls, frame_t *frame) {
+	/* headers MUST not get strings longer than 128 octets in size. */
+	char *length_buffer = calloc(128, sizeof(char));
+	sprintf(length_buffer, "%zu", strlen(simple));
+	
 	http_response_headers_t *list = http_create_response_headers(3);
 	http_response_headers_add(list, HTTP_RH_STATUS_200, NULL);
-	http_response_headers_add(list, HTTP_RH_CONTENT_LENGTH, "2");
+	http_response_headers_add(list, HTTP_RH_CONTENT_LENGTH, length_buffer);
+	http_response_headers_add(list, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
 	http_response_headers_add(list, HTTP_RH_SERVER, "TheWooshServer");
 	
 	char *headers = calloc(1, 256);
-	size_t i, bp = 0;
+	size_t i, pos = 0;
 	http_response_header_t *header;
-  printf(" Header count: %zu\n", list->count);
+	printf(" Header count: %zu\n", list->count);
 	for (i = 0; i < list->count; i++) {
-		/*headers[bp / 8] &= (1 << i);*/
+		/*headers[pos] &= (1 << i);*/
 		header = list->headers[i];
 		switch (header->name) {
 			case HTTP_RH_CONTENT_LENGTH:
-				/* 0x92 = 01011100 */
-        headers[bp / 8] = 0x92;
-        bp += 8;
-        write_str(headers, header->value, &bp);
+				/* 0x5C = 01011100 */
+				headers[pos] = 0x5C;
+				pos += 1;
+				write_str(headers, header->value, &pos);
+				break;
+			case HTTP_RH_CONTENT_TYPE:
+				/* 0x5F = 01011111 */
+				headers[pos] = 0x5F;
+				pos += 1;
+				write_str(headers, header->value, &pos);
 				break;
 			case HTTP_RH_SERVER:
-        /* 0x76 = 01110110 */
-        /*put_bits(headers, 0x76, bp);*/
-        headers[bp / 8] = 0x76;
-        bp += 8;
-        write_str(headers, header->value, &bp);
+				/* 0x76 = 01110110 */
+				/*put_bits(headers, 0x76, pos);*/
+				headers[pos] = 0x76;
+				pos += 1;
+				write_str(headers, header->value, &pos);
 				break;
 			case HTTP_RH_STATUS_200:
 				/* 0x88 = 10001000 */
-        headers[bp / 8] = 0x88;
-        bp += 8;
+				headers[pos] = 0x88;
+				pos += 1;
 				break;
-      default:
-        printf("(?) Unknown header type: %u\n", header->name);
-        break;
+			default:
+				printf("(?) Unknown header type: %u\n", header->name);
+				break;
 		}
 	}
-	size_t bpleft = bp % 8;
-	if (bpleft != 0) {
-		/* Add EOS padding */
-		for (i = 0; i < bpleft; i++)
-			headers[bp/8] &= (1 << i);
-		bp += bpleft;
-	}
+	/* Add EOS padding */
+/* 	size_t bpleft = bp % 8;
+ 	if (bpleft != 0) {
+ 		for (i = 0; i < bpleft; i++) {
+ 			headers[bp/8] &= (1 << i);
+ 		}
+ 		bp += bpleft;
+ 	}
+ 	*/
+	free(length_buffer);
 	http_response_headers_destroy(list);
+
+	/* reparse to see if/where the (an) error is. */ /*{
+		frame_t *temp_frame = malloc(sizeof(frame_t));
+		temp_frame->flags = FLAG_END_HEADERS;
+		temp_frame->length = pos;
+		temp_frame->data = headers;
+		http_header_list_t *temp_headers = http_create_header_list();
+		dynamic_table_t *dynamic_table = dynamic_table_create(4096);
+		handle_headers(temp_frame, dynamic_table, temp_headers);
+		dynamic_table_destroy(dynamic_table);
+		http_destroy_header_list(temp_headers);
+		free(temp_frame);
+	}*/
 	
-  printf(" > sending HEADERS frame, bp=%zu len=%zu\n", bp, bp/8);
-	send_frame(tls, bp / 8, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
+	printf(" > sending HEADERS frame, pos=%zu\n", pos);
+	send_frame(tls, pos, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
 	
-  printf(" > sending DATA frame, strlen=%zu\n", strlen(simple));
-	send_frame(tls, strlen(simple), FRAME_DATA, 0, frame->r_s_id, simple);
+	printf(" > sending DATA frame, strlen=%zu\n", strlen(simple));
+	send_frame(tls, strlen(simple), FRAME_DATA, FLAG_END_STREAM, frame->r_s_id, simple);
 }
 
 http_request_t http2_parse(TLS tls) {
@@ -179,18 +210,18 @@ http_request_t http2_parse(TLS tls) {
 	size_t settings_count = HTTP2_SETTINGS_COUNT;
 	setentry_t *settings = calloc(settings_count, sizeof(setentry_t));
 	/* default values as per 6.5.2 */
-	settings[0].id = 0x1;
-	settings[0].value = 4096;
-	settings[1].id = 0x2;
-	settings[1].value = 1;
-	settings[2].id = 0x3;
-	settings[2].value = 100;
-	settings[3].id = 0x4;
-	settings[3].value = 65535;
-	settings[4].id = 0x5;
-	settings[4].value = 16384;
-	settings[5].id = 0x5;
-	settings[5].value = UINT32_MAX;
+	settings[0].id = 0x1;           /* SETTINGS_HEADER_TABLE_SIZE */
+	settings[0].value = 4096;       /* 2^12 */
+	settings[1].id = 0x2;           /* SETTINGS_ENABLE_PUSH */
+	settings[1].value = 1;          /* initial value: 1 (true) */
+	settings[2].id = 0x3;           /* SETTINGS_MAX_CONCURRENT_STREAMS */
+	settings[2].value = 100;        /* recommended lower limit: 100 */
+	settings[3].id = 0x4;           /* SETTINGS_INITIAL_WINDOW_SIZE */
+	settings[3].value = 65535;      /* initial value: 2^16-1 */
+	settings[4].id = 0x5;           /* SETTINGS_MAX_FRAME_SIZE */
+	settings[4].value = 16384;      /* initial value: 2^14 */
+	settings[5].id = 0x5;           /* SETTINGS_MAX_HEADER_LIST_SIZE */
+	settings[5].value = UINT32_MAX; /* initial value: unset */
 	
 	puts("\x1b[32mbegin\x1b[0m");
 	
@@ -199,8 +230,9 @@ http_request_t http2_parse(TLS tls) {
 		PRTERR("[H2] Preface io/comparison failure.\n");
 		return req;
 	}
+	H2_ERROR error = H2_NO_ERROR;
 	
-	frame_t *frame = readfr(tls);
+	frame_t *frame = readfr(tls, settings[4].value, &error);
 	
 	/** Dynamic Table */
 	dynamic_table_t *dynamic_table = NULL;
@@ -216,7 +248,7 @@ http_request_t http2_parse(TLS tls) {
 	if (frame) {
 		if (frame->type != 0x4) {
 			PRTERR("[H2] Protocol error: first frame wasn't a settings frame!");
-      send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
+			send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
 			goto end;
 		}
     
@@ -238,14 +270,15 @@ http_request_t http2_parse(TLS tls) {
 		}
 		
 		send_settings_ack(tls);
-		
-		
 		headers = http_create_header_list();
 		
 		size_t previous_type = 0x4;
 		
-		while ((frame = readfr(tls))) {
+		while ((frame = readfr(tls, settings[4].value, &error))) {
 			switch (frame->type) {
+				case FRAME_DATA:
+					
+					break;
 				case FRAME_HEADERS:
 					if (!dynamic_table) {
 						size_t client_max_size = 0;
@@ -257,10 +290,10 @@ http_request_t http2_parse(TLS tls) {
 						dynamic_table = dynamic_table_create(client_max_size);
 					}
 					
-					handle_headers(frame, dynamic_table, headers);
+					/*handle_headers(frame, dynamic_table, headers);*/
 					
 					if (frame->flags & FLAG_END_HEADERS) {
-						puts("+======== HeaderList ========+");
+						/*puts("+======== HeaderList ========+");
 						printf("Count: %zu size: %zu ptr=%p ptrparent=%p\n", headers->count, headers->size, headers->headers, headers);
 						for (i = 0; i < headers->count; i++) {
 							printf(" > (%zu) Ptr=%p ", i, headers->headers[i]);
@@ -268,7 +301,7 @@ http_request_t http2_parse(TLS tls) {
 							printf("Value='%s' ", headers->headers[i]->value);
 							printf("Type='%s'\n", http_header_type_names[headers->headers[i]->type]);
 						}
-						
+						*/
 						
 						handle_simple(tls, frame);
 						http_destroy_header_list(headers);
@@ -291,10 +324,11 @@ http_request_t http2_parse(TLS tls) {
 				case FRAME_RST_STREAM:
 					fputs("\x1b[33mEnd (semi-gracefully) requested, ", stdout);
 					if (frame->length == 4) {
-						printf("reason: %s\x1b[0m\n", error_codes[u32(frame->data)]);
+						printf("reason: %s\x1b[0m\n", h2_error_codes[u32(frame->data)]);
 					} else {
 						puts("but the reason was corrupted.");
 					}
+					send_goaway(tls, H2_CANCEL, 0x0);
 					goto end;
 					break;
 				case FRAME_SETTINGS:
@@ -314,7 +348,7 @@ http_request_t http2_parse(TLS tls) {
 					}
 					break;
 				case FRAME_GOAWAY:
-					printf("\x1b[31m > GOAWAY ErrorCode=%s\x1b[0m\n", error_codes[u32(frame->data+4)]);
+					printf("\x1b[31m > GOAWAY ErrorCode=%s\x1b[0m\n", h2_error_codes[u32(frame->data+4)]);
 					break;
 				case FRAME_WINDOW_UPDATE:
 					if (frame->length != 4) {
@@ -351,9 +385,18 @@ http_request_t http2_parse(TLS tls) {
 			previous_type = frame->type;
 			free(frame);
 		}
-    printf("\x1b[32mEnd of frame stream.\n\x1b[0m");
+		
+		if (error != H2_NO_ERROR) {
+			send_goaway(tls, error, 0x0);
+		}
+		
+		printf("\x1b[32mEnd of frame stream. Reason: %s\n\x1b[0m\n", h2_error_codes[error]);
 	} else {
-		PRTERR("I/O failure for settings frame.");
+		if (error == H2_NO_ERROR) {
+			PRTERR("I/O failure for settings frame.");
+		} else {
+			send_goaway(tls, error, 0x0);
+		}
 	}
 	
 	end:

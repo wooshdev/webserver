@@ -49,7 +49,7 @@ extern const char *settings_ids[];
 /* RFC 7540: Section 6.x */
 extern const char *frame_types[];
 /* RFC 7540: Section 7 */
-extern const char *error_codes[];
+extern const char *h2_error_codes[];
 
 /* RFC 7540: Section 3.5 */
 extern const char *preface;

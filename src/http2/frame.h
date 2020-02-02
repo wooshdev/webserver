@@ -22,6 +22,9 @@
 /** For the 'TLS' typedef. */
 #include "../secure/tlsutil.h"
 
+/* For the H2_ERROR enum */
+#include "constants.h"
+
 typedef struct {
 	unsigned int length : 24;
 	unsigned char type;
@@ -37,23 +40,30 @@ typedef struct {
  * Parameters:
  *   TLS
  *     The source to read from.
+ *   uint32_t
+ *     The maximum size for one frame.
+ *   H2_ERROR *
+ *     The pointer to an address where 
+ *     the error code is set, if an error 
+ *     has occurred (i.e. if the return 
+ *     value is NULL).
  * 
  * Return Value:
  *   A 'frame *', or NULL if failed.
  */
-frame_t *readfr(TLS);
+frame_t *readfr(TLS, uint32_t, H2_ERROR *);
 
 /**
  * Description:
  *   Sends a frame.
  * 
  * Parameters:
- *   Except for 'TLS' as the source, are all the parameters types of HTTP frames.
+ *   Except for 'TLS' as the source and max_size, are all the parameters types of HTTP frames.
  *   See RFC 7540 Section 4.1
  * 
  * Return Value:
  *   (boolean) I/O success status 
  */
-int send_frame(TLS, uint32_t length, char type, char flags, uint32_t stream, const char *data);
+int send_frame(TLS, /*uint32_t max_size, */uint32_t length, char type, char flags, uint32_t stream, const char *data);
 
 #endif /* HTTP2_FRAME_H */

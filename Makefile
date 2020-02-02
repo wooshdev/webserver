@@ -12,7 +12,7 @@ CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
 HTTPBINARIES = bin/http/parser.so bin/http/common.so bin/http/http1.so bin/http/header_list.so bin/http/response_headers.so
-HTTP2BINARIES = bin/http2/core.so bin/http2/constants.so bin/http2/dynamic_table.so bin/http2/frame.so bin/http2/hpack.so bin/http2/huffman.so bin/http2/static_table.so
+HTTP2BINARIES = bin/http2/core.so bin/http2/constants.so bin/http2/dynamic_table.so bin/http2/frame.so bin/http2/hpack.so bin/http2/huffman.so bin/http2/static_table.so bin/http2/stream.so
 SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so  bin/handling/handlers.so $(HTTPBINARIES) $(HTTP2BINARIES)
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
@@ -63,6 +63,8 @@ bin/http2/hpack.so: src/http2/hpack.c src/http2/hpack.h bin/http2/dynamic_table.
 bin/http2/huffman.so: src/http2/huffman.c src/http2/huffman.h src/http2/huffman_table.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http2/static_table.so: src/http2/static_table.c src/http2/static_table.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http2/stream.so: src/http2/stream.c src/http2/stream.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 memtest:
 	valgrind --leak-check=full \

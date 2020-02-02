@@ -15,6 +15,7 @@
 
 typedef enum {
 	HTTP_RH_CONTENT_LENGTH,
+	HTTP_RH_CONTENT_TYPE,
 	HTTP_RH_SERVER,
 	HTTP_RH_STATUS_200,
 } http_response_header_name;
