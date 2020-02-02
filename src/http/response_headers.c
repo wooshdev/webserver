@@ -39,15 +39,15 @@ void http_response_headers_destroy(http_response_headers_t *list) {
 
 int http_response_headers_add(http_response_headers_t *list, http_response_header_name name, char *value) {
 	if (!list) {
-    puts("\x1b[31m[HTTPResponseHeaders] Error: HeaderList is null\x1b[0m");
+		puts("\x1b[31m[HTTPResponseHeaders] Error: HeaderList is null\x1b[0m");
 		return 0;
-  }
+	}
 
 	/* resize if necessary */
 	if (list->count + 1 == list->size) {
 		http_response_header_t **headers = realloc(list->headers, (list->size += SIZE_INCREASE_STEP_SIZE) * sizeof(http_response_header_t *));
 		if (!headers) {
-      puts("\x1b[31m[HTTPResponseHeaders] Error: Header list reallocation error!\x1b[0m");
+			puts("\x1b[31m[HTTPResponseHeaders] Error: Header list reallocation error!\x1b[0m");
 			return 0;
 		}
 		list->headers = headers;
@@ -55,9 +55,9 @@ int http_response_headers_add(http_response_headers_t *list, http_response_heade
 
 	http_response_header_t *header = calloc(1, sizeof(http_response_header_t));
 	if (!header) {
-    puts("\x1b[31m[HTTPResponseHeaders] Error: Header is null\x1b[0m");
+		puts("\x1b[31m[HTTPResponseHeaders] Error: Header is null\x1b[0m");\
 		return 0;
-  }
+	}
 
 	header->name = name;
 	header->value = value ? strdup(value) : value;
@@ -72,6 +72,5 @@ int http_response_headers_add(http_response_headers_t *list, http_response_heade
   */
 
 	list->headers[list->count++] = header;
-  printf(" Count is now %zu\n", list->count);
 	return 1;
 }

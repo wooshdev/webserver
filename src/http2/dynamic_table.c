@@ -59,7 +59,7 @@ lookup_t dynamic_table_get(dynamic_table_t *table, size_t index) {
 	
 	if (index < HTTP2_STATIC_TABLE_SIZE) {
 		res.static_e = static_table[index];
-	} else if (index - HTTP2_STATIC_TABLE_SIZE < table->index_last) {
+	} else if (index - HTTP2_STATIC_TABLE_SIZE <= table->index_last) {
 		res.dynamic = table->entries[index - HTTP2_STATIC_TABLE_SIZE];
 	}
 	

@@ -1,3 +1,7 @@
+/**
+ * Copyright (C) 2019-2020 Tristan
+ * For conditions of distribution and use, see copyright notice in the COPYING file.
+ */
 #include "stream.h"
 
 #include <stdlib.h>

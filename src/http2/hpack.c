@@ -14,6 +14,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* to enable logging: */
+/*
+#define HPACK_LOGGING_TYPE
+and/or
+#define HPACK_LOGGING_KEY_VALUE
+and/or
+#define HPACK_LOGGING_VERBOSE
+and/or
+#define HPACK_LOGGING_DUMP
+and/or
+#define HPACK_LOGGING_ERROR
+and/or
+#define HPACK_LOGGING_RESULTS
+*/
+
+#define HPACK_LOGGING_KEY_VALUE
+
+/*HPACK_LOGGING_VERBOSE enables everything */
+#ifdef HPACK_LOGGING_VERBOSE
+#define HPACK_LOGGING_KEY_VALUE
+#define HPACK_LOGGING_TYPE
+#define HPACK_LOGGING_DUMP
+#endif
+
 char *dup_str(const char *src, size_t length) {
 	char *copy = malloc(length * sizeof(char));
 	if (!copy)
@@ -28,15 +52,36 @@ size_t parse_int(const char *stream, size_t *out_octets_used, size_t n) {
 	/* we can just use the first octet */
 	/* this is essentialy the same as stream < pow(2, n),
 	 * but is faster and looks cooler */
-	char i = stream[0] & (1 << (n+1));
-	/*printf("parse int i=%hhu\n", i);*/
-	if (i == 0) {
+	size_t next_n_bits = (1 << n)-1;
+	size_t i = (stream[0] & 0xFF) & ~(1<<n);
+	#ifdef HPACK_LOGGING_VERBOSE
+	printf("parse int i=%zu s=%hhu n=%zu max=%zu other=%hhx\n", i, stream[0], n, next_n_bits, stream[0] & ~(1<<n));
+	#endif
+	if (i < next_n_bits) {
 		*out_octets_used = 1;
 		char c = stream[0] & ~(1<<n);
 		return (size_t)c;
 	} else {
-		printf("ok parse_int need fix, stream=%hhu %hhu\n", stream[0], i);
-		return 0;
+		#ifdef HPACK_LOGGING_VERBOSE
+		printf("\x1b[31mok parse_int need fix, stream=%hhu %zu\x1b[0m\n", stream[0], i);
+		#endif
+		size_t m = 0, b, position = 0;
+		do {
+			b = stream[++position] & 0xFF;
+			#ifdef HPACK_LOGGING_VERBOSE
+			printf(" > b=%zu\n", b);
+			printf("(m = %zu) 2^m = %i\n", m, (1 << m));
+			#endif
+			i += (b & 127) * (1 << m);
+			m += 7;
+		} while ((b & 128) == 128);
+		
+		#ifdef HPACK_LOGGING_VERBOSE
+		printf("parse_int_fix> i=%zu m=%zu position=%zu\n", i, m, position);
+		#endif
+		
+		*out_octets_used = position + 1;
+		return i;
 	}
 }
 
@@ -65,25 +110,37 @@ char *parse_string(const char *data, size_t *octets_used, size_t *length) {
 }
 
 void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_list_t *list) {
+	#ifdef HPACK_LOGGING_DUMP
 	puts("\x1b[93m>>> \x1b[94mHPACK\x1b[93m <<<\x1b[0m");
+	#endif
 	size_t offset = 0;
 	uint32_t padding = frame->flags & FLAG_PADDED ? frame->data[offset++] : 0;
+	
+	#ifdef HPACK_LOGGING_VERBOSE
 	uint32_t dependency = 0;
 	uint8_t weight = 0;
+	#endif
+	
 	if (frame->flags & FLAG_PRIORITY) {
+		#ifdef HPACK_LOGGING_VERBOSE
 		dependency = u32(frame->data + offset);
 		weight = frame->data[offset + 1];
+		#endif
 		offset += 5;
 	}
+	#ifdef HPACK_LOGGING_VERBOSE
 	printf("[HeaderBlockInfo] Dependency=%u Weight=%u\n", dependency, weight);
+	#endif
 
 	size_t packl = frame->length - offset - padding;
 	char *data = dup_str(frame->data + offset, packl);
 
 	size_t i = 0;
+	#ifdef HPACK_LOGGING_DUMP
 	for (i = 0; i < packl; i++) {
 		printf("\x1b[32m > \x1b[34m(%03zu) \x1b[33m0x%02hhx int=%hhu\x1b[0m\n", i, data[i], data[i]/*, parse_int(frame->data+i, &i, 60)*/);
 	}
+	#endif
 
 	size_t octets_used = 0;
 	
@@ -91,16 +148,22 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 	for (i = 0; i < packl; i++) {
 		unsigned char c = data[i];
 		count++;
-		/*
-		printf("first_octet=0x%02hhX", c);
-		*/
+		
+		#ifdef HPACK_LOGGING_TYPE
+		printf("(0x%02hhX)", c);
+		#endif
 		
 		if (c > 127) {
+			#ifdef HPACK_LOGGING_TYPE
 			puts("\tIndexed Header Field");
+			#endif
 			size_t pos = parse_int(data+i, &octets_used, 7);
+			#ifdef HPACK_LOGGING_VERBOSE
+			printf(" > Pos: %zu max-int=%zu\n", pos, 62+dynamic_table->index_last);
+			#endif
 			
 			lookup_t result = dynamic_table_get(dynamic_table, pos);
-			const char *indexed_name = result.static_e ? result.static_e : result.dynamic->key;
+			const char *indexed_name = result.static_e ? result.static_e : (result.dynamic ? result.dynamic->key : NULL);
 			if (!indexed_name) {
 				goto error_label;
 			}
@@ -125,7 +188,9 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 				strcpy(value, sign_position+1);
 				value[value_size - 1] = 0;
 				
+				#ifdef HPACK_LOGGING_KEY_VALUE
 				printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
+				#endif
 				
 				/* even though we got the string from the static table, 
 				   we are duplicating it so it isn't cached */
@@ -138,7 +203,10 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 				key = result.dynamic->key;
 				value = result.dynamic->value;
 				
+				#ifdef HPACK_LOGGING_KEY_VALUE
 				printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
+				#endif
+				
 				http_header_list_add(list, key, value, HTTP_HEADER_CACHED, pos);
 			} else {
 				printf("Static+Dynamic table out-of-bounds error for pos=%zu\n", pos);
@@ -148,7 +216,9 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			/* this value should be added to the list,
 			 but also added to the dynamic table (this is like caching headers) */
 			/* 01??????*/
+			#ifdef HPACK_LOGGING_TYPE
 			puts("\tLiteral Header Field with Incremental Indexing -- Indexed Name");
+			#endif
 			size_t length = 0;
 			size_t pos = parse_int(data + i, &octets_used, 6);
 			i += octets_used;
@@ -161,17 +231,21 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			}
 
 			char *value = parse_string(data + i, &octets_used, &length);
+			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
+			
+			#ifdef HPACK_LOGGING_KEY_VALUE
 			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", indexed_name, value);
+			#endif
+			
 			char *key = strdup(indexed_name);
 			dynamic_table_add(dynamic_table, key, value);
 			http_header_list_add(list, key, value, HTTP_HEADER_CACHED, pos);
-			
-			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
-			
 		} else if (c == 64) {
 			/* this value should be added to the list,
 			 but also added to the dynamic table (this is like caching headers) */
+			 #ifdef HPACK_LOGGING_TYPE
 			puts("\tLiteral Header Field with Incremental Indexing -- New Name");
+			#endif
 			/*both key and value are supplied*/
 			size_t length;
 			
@@ -181,15 +255,18 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			i += octets_used;
 			char *hval = parse_string(data+i, &octets_used, &length);
 			
-			printf("Bytes: 0x%hhx 0x%hhx 0x%hhx\n", data[i+octets_used-2], data[i+octets_used-1], data[i+octets_used]);
 			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
+			#ifdef HPACK_LOGGING_KEY_VALUE
 			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", hkey, hval);
+			#endif
 			
 			dynamic_table_add(dynamic_table, hkey, hval);
 			http_header_list_add(list, hkey, hval, HTTP_HEADER_CACHED, 0);
 			
 		} else if (c > 0 && c < 16) {
+			#ifdef HPACK_LOGGING_TYPE
 			puts("\tLiteral Header Field without Indexing -- Indexed Name");
+			#endif
 			
 			size_t length = 0;
 			size_t pos = parse_int(data+i, &octets_used, 6);
@@ -201,35 +278,69 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 				goto error_label;
 			}
 
+			#ifdef HPACK_LOGGING_VERBOSE
 			printf("\x1b[33m [Header] %s (pos=%zu)\n", indexed_name, pos);
+			#endif
 			i += octets_used;
 
 			char *value = parse_string(data+i, &octets_used, &length);
+			#ifdef HPACK_LOGGING_KEY_VALUE
 			printf("\x1b[33m [Header] Key='%s' Value='%s' (pos=%zu)\n", indexed_name, value, pos);
+			#endif
 			http_header_list_add(list, indexed_name, value, HTTP_HEADER_NAME_CACHED, pos);
 			i += octets_used - 1;
 			
 		} else if (c == 0) {
+			#ifdef HPACK_LOGGING_TYPE
 			puts("\tLiteral Header Field without Indexing -- New Name");
-			char val_len = data[++i];
-
-			if (val_len > 127) {
-				puts("\t\thuffman");
-			} else {
-				printf("\t\tplain: 0x%02x\n", val_len&0xEF);
-			}
-			/*http_header_list_add(list, indexed_name, value, HTTP_HEADER_NAME_CACHED, pos);*/
+			#endif
+			
+			size_t length;
+			
+			i+=1;
+			char *hkey = parse_string(data+i, &octets_used, &length);
+			#ifdef HPACK_LOGGING_VERBOSE
+			printf("Test> HKEY='%s', length=%zu\n", hkey, length);
+			#endif
+			
+			i += octets_used;
+			char *hval = parse_string(data+i, &octets_used, &length);
+			#ifdef HPACK_LOGGING_VERBOSE
+			printf("Test> HVAL='%s', length=%zu\n", hval, length);
+			
+			printf("Bytes: 0x%hhx 0x%hhx 0x%hhx\n", data[i+octets_used-2], data[i+octets_used-1], data[i+octets_used]);
+			#endif
+			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
+			#ifdef HPACK_LOGGING_KEY_VALUE
+			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", hkey, hval);
+			#endif
+			
+			http_header_list_add(list, hkey, hval, HTTP_HEADER_NOT_CACHED, 0);
 		} else if (c > 32 && c < 64) {
 			/* dynamic table size update Section 6.3*/
+			#ifdef HPACK_LOGGING_TYPE
 			puts("\tDynamic Table Size Update");
-			size_t size = parse_int(data+i, &octets_used, 5);
+			#endif
+			
+			#ifdef HPACK_LOGGING_VERBOSE
+			size_t size =
+			#endif
+			parse_int(data+i, &octets_used, 5);
 			i += octets_used -1;
+			#ifdef HPACK_LOGGING_VERBOSE
 			printf("\t> New size: %zu\n", size);
+			#endif
 		} else {
+			#ifdef HPACK_LOGGING_ERROR
 			printf("\tother? i=%hhu\n", c);
+			#endif
 		}
 	}
+	#ifdef HPACK_LOGGING_RESULTS
 	printf("\nEnd of headers!\n\tpackl: %zu\n\ti: %zu\n\tcount: %zu\n", packl, i, count);
+	#endif
+	
+	#ifdef HPACK_LOGGING_VERBOSE
 	printf("Flag set: %s\n", (frame->flags & FLAG_END_HEADERS ? "true" : "false"));
 	
 	printf("DynamicTable (index_last=%zu size=%zu client_max_size=%zu)\n", dynamic_table->index_last, dynamic_table->size, dynamic_table->client_max_size);
@@ -238,11 +349,14 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			printf("> DynamicTable (%zu) Key='%s' Value='%s'\n", i, dynamic_table->entries[i]->key, dynamic_table->entries[i]->value);
 		}
 	}
+	#endif
 	
 	return;
 	
 error_label:
+	#ifdef HPACK_LOGGING_ERROR
 	puts("Parsing error encountered.");
+	#endif
 	return;
 }
  

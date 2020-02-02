@@ -130,7 +130,9 @@ int http_header_list_add(http_header_list_t *list, const char *key, char *value,
 	}
 	
 	list->headers[list->count] = header;
+	/*
 	printf("HTTPHeaderList> Added=%p (count=%zu) key=%s value=%s\n", header, list->count, key, value);
+	*/
 	
 	list->count += 1;
 	

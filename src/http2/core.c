@@ -110,7 +110,9 @@ static void send_goaway(TLS tls, uint32_t error, uint32_t stream) {
 
 static void write_str(char *data, const char *str, size_t *pos) {
 	size_t j, length = strlen(str);
+	/*
 	printf("String length: 0x%zx or %zu\n", length, length);
+	*/
 	data[(*pos)] = length;
 	
 	(*pos) += 1;
@@ -136,7 +138,9 @@ static void handle_simple(TLS tls, frame_t *frame) {
 	char *headers = calloc(1, 256);
 	size_t i, pos = 0;
 	http_response_header_t *header;
+	/*
 	printf(" Header count: %zu\n", list->count);
+	*/
 	for (i = 0; i < list->count; i++) {
 		/*headers[pos] &= (1 << i);*/
 		header = list->headers[i];
@@ -290,7 +294,7 @@ http_request_t http2_parse(TLS tls) {
 						dynamic_table = dynamic_table_create(client_max_size);
 					}
 					
-					/*handle_headers(frame, dynamic_table, headers);*/
+					handle_headers(frame, dynamic_table, headers);
 					
 					if (frame->flags & FLAG_END_HEADERS) {
 						/*puts("+======== HeaderList ========+");
