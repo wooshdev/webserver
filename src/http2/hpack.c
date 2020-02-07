@@ -30,18 +30,32 @@ and/or
 */
 
 #define HPACK_LOGGING_KEY_VALUE
+#define HPACK_LOGGING_ERROR
 
 /*HPACK_LOGGING_VERBOSE enables everything */
 #ifdef HPACK_LOGGING_VERBOSE
 #define HPACK_LOGGING_KEY_VALUE
 #define HPACK_LOGGING_TYPE
 #define HPACK_LOGGING_DUMP
+#define HPACK_LOGGING_ERROR
 #endif
 
 char *dup_str(const char *src, size_t length) {
 	char *copy = malloc(length * sizeof(char));
 	if (!copy)
 		return NULL;
+	size_t i;
+	for (i = 0; i < length; i++)
+		copy[i] = src[i];
+	return copy;
+}
+
+/* duplicate string + NULL-termination */
+char *tdup_str(const char *src, size_t length) {
+	char *copy = malloc((length+1) * sizeof(char));
+	if (!copy)
+		return NULL;
+	copy[length] = 0;
 	size_t i;
 	for (i = 0; i < length; i++)
 		copy[i] = src[i];
@@ -182,7 +196,7 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 				key = malloc(sizeof(char) * key_size);
 				value = malloc(sizeof(char) * value_size);
 				
-				strcpy(key, indexed_name);
+				memcpy(key, indexed_name, key_size - 1);
 				key[key_size - 1] = 0;
 				
 				strcpy(value, sign_position+1);
@@ -229,15 +243,22 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			if (!indexed_name) {
 				goto error_label;
 			}
+			
+			char *key = NULL;
+			char *sign_position = strchr(indexed_name, '$');
+			if (sign_position) {
+				key = tdup_str(indexed_name, sign_position - indexed_name);
+			} else {
+				key = strdup(indexed_name);
+			}
 
 			char *value = parse_string(data + i, &octets_used, &length);
 			i += octets_used - 1; /* we have to subtract 1 because the for loop adds one for us */
 			
 			#ifdef HPACK_LOGGING_KEY_VALUE
-			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", indexed_name, value);
+			printf("\x1b[33m[Header] Key='%s' Value='%s'\x1b[0m\n", key, value);
 			#endif
 			
-			char *key = strdup(indexed_name);
 			dynamic_table_add(dynamic_table, key, value);
 			http_header_list_add(list, key, value, HTTP_HEADER_CACHED, pos);
 		} else if (c == 64) {
@@ -277,17 +298,25 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 			if (!indexed_name) {
 				goto error_label;
 			}
+			
+			char *key = NULL;
+			char *sign_position = strchr(indexed_name, '$');
+			if (sign_position) {
+				key = tdup_str(indexed_name, sign_position - indexed_name);
+			} else {
+				key = strdup(indexed_name);
+			}
 
 			#ifdef HPACK_LOGGING_VERBOSE
-			printf("\x1b[33m [Header] %s (pos=%zu)\n", indexed_name, pos);
+			printf("\x1b[33m [Header] %s (pos=%zu)\n", key, pos);
 			#endif
 			i += octets_used;
 
 			char *value = parse_string(data+i, &octets_used, &length);
 			#ifdef HPACK_LOGGING_KEY_VALUE
-			printf("\x1b[33m [Header] Key='%s' Value='%s' (pos=%zu)\n", indexed_name, value, pos);
+			printf("\x1b[33m [Header] Key='%s' Value='%s' (pos=%zu)\n", key, value, pos);
 			#endif
-			http_header_list_add(list, indexed_name, value, HTTP_HEADER_NAME_CACHED, pos);
+			http_header_list_add(list, key, value, HTTP_HEADER_NOT_CACHED, pos);
 			i += octets_used - 1;
 			
 		} else if (c == 0) {
