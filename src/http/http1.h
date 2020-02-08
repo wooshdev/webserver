@@ -7,7 +7,10 @@
 
 #include "common.h"
 #include "../secure/tlsutil.h"
+#include "header_list.h"
 
-http_request_t *http1_parse(TLS);
+http_header_list_t *http1_parse(TLS);
+
+void http1_write_response(TLS, http_response_t *);
 
 #endif /*H1_H*/

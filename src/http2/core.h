@@ -11,9 +11,9 @@
 #include "../http/common.h"
 #include "../secure/tlsutil.h"
 
-http_request_t http2_parse(TLS);
+void http2_handle(TLS);
 
-int http2_setup();
+int http2_setup(void);
 
 /* settings entry (RFC 7540 Section 6.5.1)*/
 typedef struct {

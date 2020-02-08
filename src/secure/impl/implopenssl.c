@@ -199,7 +199,6 @@ int tls_setup(secure_config_t *sconfig) {
 	/* set ALPN */
 	SSL_CTX_set_alpn_select_cb(ctx, alpn_handle, NULL);
 	
-	
 	/* OCSP stapling */
 	if (sconfig->ocsp_file) {
 		ocsp_data.file = sconfig->ocsp_file;

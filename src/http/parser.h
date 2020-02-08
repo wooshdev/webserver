@@ -9,6 +9,13 @@
 
 #include "../secure/tlsutil.h"
 #include "common.h"
+#include "header_list.h"
+
+#define HTTP_PARSER_ERROR_NONE          0
+#define HTTP_PARSER_ERROR_MEMORY        1
+#define HTTP_PARSER_ERROR_READ          2
+#define HTTP_PARSER_ERROR_TOO_MANY      3
+#define HTTP_PARSER_ERROR_UNREGISTERED  4
 
 /**
  * Description:
@@ -54,9 +61,21 @@ int http_parse_method(TLS, char *, size_t);
  * Parameters:
  *   TLS
  *     The TLS source to be read from.
- *   http_headers_t
+ *   http_header_list_t
  *     The headers map.
+ * 
+ * Return Value:
+ *   The error code:
+ *   |-------|---------------------|
+ *   | Value |     Description     |
+ *   |-------|---------------------|
+ *   |   0   |       No error      |
+ *   |   1   |     Memory error    |
+ *   |   2   |      Read error     |
+ *   |   3   |   Too many headers  |
+ *   |   4   | Unregistered header |
+ *   |-------|---------------------|
  */
-void http_parse_headers(TLS, http_headers_t);
+size_t http_parse_headers(TLS, http_header_list_t *);
 
 #endif /* HTTP_PARSER_H */

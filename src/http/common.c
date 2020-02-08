@@ -110,7 +110,6 @@ const char *http_get_header(http_headers_t headers, const char *key) {
 	
 	size_t i;
 	for (i = 0; i < headers.count; i++) {
-		printf("%zi > %p %p\n", i, headers.keys[i], headers.values[i]);
 		if (!strcmp(key, headers.keys[i])) {
 			return headers.values[i];
 		}

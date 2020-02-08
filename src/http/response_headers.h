@@ -13,12 +13,28 @@
 
 #include <stddef.h>
 
+/* The amount of statuses in http_response_header_name.
+ * This should also be the same as the offset of the 
+ * first "normal" header, since statuses should be at 
+ * the end as they are special; they are not headers in
+ * HTTP < 2 */
+#define HTTP_RH_STATUSES 3
+
 typedef enum {
-	HTTP_RH_CONTENT_LENGTH,
-	HTTP_RH_CONTENT_TYPE,
-	HTTP_RH_SERVER,
-	HTTP_RH_STATUS_200,
+	HTTP_RH_STATUS_200 = 0x0,
+	HTTP_RH_STATUS_204 = 0x1,
+	HTTP_RH_STATUS_404 = 0x2,
+	HTTP_RH_CONTENT_LENGTH = 0x3,
+	HTTP_RH_CONTENT_TYPE = 0x4,
+	HTTP_RH_DATE = 0x5,
+	HTTP_RH_SERVER = 0x6,
+	HTTP_RH_TK = 0x7,
+	HTTP_RH_VARY = 0x8
 } http_response_header_name;
+
+/* These are the text representation for HTTP/1.1 of the enums above,
+	for example: { "Content-Length: ", "Content-Type: " } etc. */
+extern const char *http_rhnames[];
 
 typedef struct {
 	http_response_header_name name;

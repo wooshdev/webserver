@@ -8,6 +8,7 @@
 #define HANDLERS_H
 
 #include "../http/common.h"
+#include "../http/header_list.h"
 
 typedef http_response_t (*http_handler_func)(http_request_t);
 
@@ -52,13 +53,13 @@ void handle_destroy(void);
  *   This function will forward the request to the correct handler.
  *
  * Parameters:
- *   http_request_t
- *     The request in parsed form.
+ *   http_header_list_t *
+ *     The headers of the request.
  *
  * Return Value:
  *   The HTTP response. The content field can be NULL, but the error field should be set.
  */
-http_response_t handle_request(http_request_t);
+http_response_t *http_handle_request(http_header_list_t *);
 
 size_t handler_count;
 http_handler_t **handlers;

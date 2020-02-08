@@ -22,6 +22,8 @@
 #include "huffman.h"
 #include "stream.h"
 
+#include "../handling/handlers.h"
+
 /* string compare with length */
 int scomp(const char *a, const char *b, size_t len) {
 	size_t i;
@@ -43,7 +45,7 @@ static H2_ERROR handle_settings(frame_t *frame, setentry_t *settings) {
 			ent.id = (start[0] << 8) | start[1];
 			ent.value = u32(start+2);
 			
-			if (ent.id >= HTTP2_SETTINGS_COUNT) {
+			if (ent.id > HTTP2_SETTINGS_COUNT) {
 				fprintf(stderr, "[H2] Invalid setting identifier: %hu with value %u\n", ent.id, ent.value);
 				return H2_PROTOCOL_ERROR;
 			}
@@ -124,16 +126,19 @@ static void write_str(char *data, const char *str, size_t *pos) {
 
 static const char *simple = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This is sent via HTTP/2!</h1></body>";
 
-static void handle_simple(TLS tls, frame_t *frame) {
-	/* headers MUST not get strings longer than 128 octets in size. */
-	char *length_buffer = calloc(128, sizeof(char));
+static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_header_list, setentry_t *settings) {
+	http_response_t *response = http_handle_request(request_header_list);
+	
+	
+	/* headers MUST not get strings longer than 256 octets in size. */
+	char *length_buffer = calloc(256, sizeof(char));
 	sprintf(length_buffer, "%zu", strlen(simple));
 	
-	http_response_headers_t *list = http_create_response_headers(3);
+	/*http_response_headers_t *list = http_create_response_headers(3);
 	http_response_headers_add(list, HTTP_RH_STATUS_200, NULL);
 	http_response_headers_add(list, HTTP_RH_CONTENT_LENGTH, length_buffer);
 	http_response_headers_add(list, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
-	http_response_headers_add(list, HTTP_RH_SERVER, "TheWooshServer");
+	http_response_headers_add(list, HTTP_RH_SERVER, "TheWooshServer");*/
 	
 	char *headers = calloc(1, 256);
 	size_t i, pos = 0;
@@ -141,32 +146,35 @@ static void handle_simple(TLS tls, frame_t *frame) {
 	/*
 	printf(" Header count: %zu\n", list->count);
 	*/
-	for (i = 0; i < list->count; i++) {
+	for (i = 0; i < response->headers->count; i++) {
 		/*headers[pos] &= (1 << i);*/
-		header = list->headers[i];
+		header = response->headers->headers[i];
 		switch (header->name) {
 			case HTTP_RH_CONTENT_LENGTH:
-				/* 0x5C = 01011100 */
-				headers[pos] = 0x5C;
+				headers[pos] = 0x5C; /* = 01011100 */
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
 			case HTTP_RH_CONTENT_TYPE:
-				/* 0x5F = 01011111 */
-				headers[pos] = 0x5F;
+				headers[pos] = 0x5F; /* = 01011111 */
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
 			case HTTP_RH_SERVER:
-				/* 0x76 = 01110110 */
-				/*put_bits(headers, 0x76, pos);*/
-				headers[pos] = 0x76;
+				headers[pos] = 0x76; /* = 01110110 */
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
 			case HTTP_RH_STATUS_200:
-				/* 0x88 = 10001000 */
-				headers[pos] = 0x88;
+				headers[pos] = 0x88; /* = 10001000 */
+				pos += 1;
+				break;
+			case HTTP_RH_STATUS_204:
+				headers[pos] = 0x89; /* = 10001001 */
+				pos += 1;
+				break;
+			case HTTP_RH_STATUS_404:
+				headers[pos] = 0x93; /* = 10001011 */
 				pos += 1;
 				break;
 			default:
@@ -184,9 +192,8 @@ static void handle_simple(TLS tls, frame_t *frame) {
  	}
  	*/
 	free(length_buffer);
-	http_response_headers_destroy(list);
 
-	/* reparse to see if/where the (an) error is. */ /*{
+	/* reparse to see if/where the (an) error is. */ {
 		frame_t *temp_frame = malloc(sizeof(frame_t));
 		temp_frame->flags = FLAG_END_HEADERS;
 		temp_frame->length = pos;
@@ -197,19 +204,24 @@ static void handle_simple(TLS tls, frame_t *frame) {
 		dynamic_table_destroy(dynamic_table);
 		http_destroy_header_list(temp_headers);
 		free(temp_frame);
-	}*/
+	}
 	
-	printf(" > sending HEADERS frame, pos=%zu\n", pos);
+	
+	printf(" > sending HEADERS frame, len=%zu\n", pos);
 	send_frame(tls, pos, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
 	
-	printf(" > sending DATA frame, strlen=%zu\n", strlen(simple));
-	send_frame(tls, strlen(simple), FRAME_DATA, FLAG_END_STREAM, frame->r_s_id, simple);
+	printf(" > sending DATA frame, len=%zu\n", response->body_size);
+	send_frame(tls, response->body_size, FRAME_DATA, FLAG_END_STREAM, frame->r_s_id, response->body);
+	
+	if (response->is_dynamic) {
+		free(response->body);
+		http_response_headers_destroy(response->headers);
+		free(response);
+	}
 }
 
-http_request_t http2_parse(TLS tls) {
-	http_request_t req = { 0 };
-	
+void http2_handle(TLS tls) {
 	uint32_t window_size = UINT16_MAX;
 	size_t settings_count = HTTP2_SETTINGS_COUNT;
 	setentry_t *settings = calloc(settings_count, sizeof(setentry_t));
@@ -224,7 +236,7 @@ http_request_t http2_parse(TLS tls) {
 	settings[3].value = 65535;      /* initial value: 2^16-1 */
 	settings[4].id = 0x5;           /* SETTINGS_MAX_FRAME_SIZE */
 	settings[4].value = 16384;      /* initial value: 2^14 */
-	settings[5].id = 0x5;           /* SETTINGS_MAX_HEADER_LIST_SIZE */
+	settings[5].id = 0x6;           /* SETTINGS_MAX_HEADER_LIST_SIZE */
 	settings[5].value = UINT32_MAX; /* initial value: unset */
 	
 	puts("\x1b[32mbegin\x1b[0m");
@@ -232,7 +244,7 @@ http_request_t http2_parse(TLS tls) {
 	char prefacebuf[24] = { 0 };
 	if (!tls_read_client_complete(tls, prefacebuf, 24) || !scomp(prefacebuf, preface, 24)) {
 		PRTERR("[H2] Preface io/comparison failure.\n");
-		return req;
+		return;
 	}
 	H2_ERROR error = H2_NO_ERROR;
 	
@@ -307,7 +319,7 @@ http_request_t http2_parse(TLS tls) {
 						}
 						*/
 						
-						handle_simple(tls, frame);
+						h2_handle(tls, frame, headers, settings);
 						http_destroy_header_list(headers);
 						headers = http_create_header_list();
 					}
@@ -409,7 +421,7 @@ http_request_t http2_parse(TLS tls) {
 	if (headers)
 		http_destroy_header_list(headers);
 	puts("\x1b[32mend\x1b[0m");
-	return req;
+	return;
 }
 
 int http2_setup() {

@@ -31,7 +31,7 @@ const char *http_header_type_names[] = { "HTTP_HEADER_CACHED", "HTTP_HEADER_NAME
 
 http_header_list_t *http_create_header_list() {
 	http_header_list_t *list = malloc(sizeof(http_header_list_t));
-	if (!list) 
+	if (!list)
 		return list;
 	list->count = 0;
 	list->size = HEADER_LIST_INITIAL_SIZE;
@@ -87,6 +87,9 @@ const char *http_header_list_gets(http_header_list_t *list, const char *key) {
 }
 
 int http_header_list_add(http_header_list_t *list, const char *key, char *value, http_header_type type, size_t static_table_position) {
+	/*
+	printf("[HTTPHeaderList] Information about the list:\n\tCount: %zu\n\tSize: %zu\n", list->count, list->size);
+	*/
 	if (list->count+1 == list->size) {
 		http_header_t **headers = realloc(list->headers, (list->size += HEADER_LIST_STEP_SIZE) * sizeof(http_header_t *));
 		if (!headers) {
@@ -94,20 +97,22 @@ int http_header_list_add(http_header_list_t *list, const char *key, char *value,
 		}
 		list->headers = headers;
 	}
-	
+
 	http_header_t *header = calloc(1, sizeof(http_header_t));
 	if (!header) {
 		return 0;
 	}
-	
+
 	header->type = type;
 	switch (type) {
 		case HTTP_HEADER_NAME_DEFINED: {
 			if (static_table_position == 0) {
-				if (strcasecmp(key, "server") == 0)
+				if (strcasecmp(key, ":authority") == 0 || strcasecmp(key, "host") == 0)
 					header->defined_name = HEADER_AUTHORITY;
 				else if (strcasecmp(key, ":path") == 0)
 					header->defined_name = HEADER_AUTHORITY;
+				else if (strcasecmp(key, ":method") == 0)
+					header->defined_name = HEADER_METHOD;
 			} else {
 				switch (static_table_position) {
 					case 1:
@@ -121,20 +126,20 @@ int http_header_list_add(http_header_list_t *list, const char *key, char *value,
 						break;
 				}
 			}
-			
+
 		} /* no break here *purposely done* */
 		default:
 			header->key = key;
 			header->value = value;
 			break;
 	}
-	
+
 	list->headers[list->count] = header;
+
 	/*
 	printf("HTTPHeaderList> Added=%p (count=%zu) key=%s value=%s\n", header, list->count, key, value);
 	*/
-	
+
 	list->count += 1;
-	
 	return 1;
 }

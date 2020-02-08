@@ -8,6 +8,7 @@
 #define HTTP_COMMON_H
 
 #include "../secure/tlsutil.h"
+#include "response_headers.h"
 
 #define HTTP_PATH_MAX 2048
 #define HTTP_VERSION_MAX 10 /* 'http/1.1'+CR+NULL is the longest */
@@ -76,13 +77,17 @@ typedef struct http_headers_t {
 } http_headers_t;
 
 typedef struct http_response_t {
-	/* The complete HTTP response (message). This field may be NULL, 
-	 * but the 'error' field should not equal to HTTP_HANDLE_ERROR_NONE.
-	 */
-	char *content;
+	/** 
+	 * Should  we free this response and its contents 
+	 * after sending it to the client?   Setting this 
+	 * to false enables us to cache responses which 
+	 * results in faster load times. */
+	int is_dynamic;
 	
-	/* The size of 'content'. if this is 0, strlen will be used. */
-	size_t size;
+	http_response_headers_t *headers;
+	size_t body_size;
+	/* "body" will be freed. */
+	char *body;
 	
 	/* The status of the response. This is purely used for logging. */
 	HTTP_LOG_STATUS status;

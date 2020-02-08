@@ -13,6 +13,7 @@ typedef enum {
 	HEADER_AUTHORITY = 0x1,
 	/* ":path"+"/" and ":path"+"/index.html" and request_line_part_two */
 	HEADER_PATH = 0x2,
+	HEADER_METHOD = 0x3
 } http_defined_name_type;
 
 typedef enum {

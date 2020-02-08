@@ -13,7 +13,8 @@
 
 /*#include "fileserver.c"*/
 
-static char test[] = "HTTP/1.1 200 OK\r\nServer: wss\r\nConnection: close\r\nStrict-Transport-Security: max-age=31536000; includeSubDomains; preload\r\n\r\nStill working pls wait.";
+static const char *H2_BODY_ok = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>HTTP/2 now available!</h1></body>";
+static const char *H2_BODY_not_found = "<h1>File Not Found.</h1>";
 
 int handle_setup(config_t config) {
 	const char *filenames_cfg = config_get(config, "handlers");
@@ -47,15 +48,53 @@ int handle_setup(config_t config) {
 void handle_destroy() {
 }
 
+http_response_t *http_handle_request(http_header_list_t *request_headers) {
+	http_response_t *response = malloc(sizeof(http_response_t));
+	response->is_dynamic = 1;
+	size_t size = 0;
+	
+	const char *path = http_header_list_gets(request_headers, ":path");
+	printf("[Handler] Path: %s\n", path);
+	response->headers = http_create_response_headers(4);
+	
+	const char *possible_paths[] = { "/", "/favicon.ico" };
+	
+	switch (strswitch(path, possible_paths, sizeof(possible_paths) / sizeof(possible_paths[0]), CASEFLAG_DONT_IGNORE)) {
+		case 0:
+			http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
+			response->body = strdup(H2_BODY_ok);
+			size = strlen(H2_BODY_ok);
+			break;
+		case 1:
+			http_response_headers_add(response->headers, HTTP_RH_STATUS_204, NULL);
+			response->body = NULL;
+			break;
+		default:
+			http_response_headers_add(response->headers, HTTP_RH_STATUS_404, NULL);
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
+			response->body = strdup(H2_BODY_not_found);
+			size = strlen(H2_BODY_not_found);
+			break;
+	}
+	response->body_size = size;
+	
+	/* TODO: Ensure size is big enough */
+	char *length_buffer = calloc(128, sizeof(char));
+	sprintf(length_buffer, "%zu", size);
+	
+	http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
+	http_response_headers_add(response->headers, HTTP_RH_SERVER, "TheWooshServer");
+	
+	response->status = HTTP_LOG_STATUS_NO_ERROR;
+	return response;
+	
+}
+
 http_response_t handle_request(http_request_t request) {
 	http_response_t response = { 0 };
 	
-	char *message = strdup(test);
+	/* MOVED TO http_handle_request! */
 	
-	size_t size = sizeof(test);
-	response.content = message;
-	response.size = size-1;
-	
-	response.status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
 }

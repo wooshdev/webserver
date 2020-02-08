@@ -9,6 +9,18 @@
 
 #define SIZE_INCREASE_STEP_SIZE 2
 
+const char *http_rhnames[] = {
+	"HTTP/1.1 200 OK\r\n",
+	"HTTP/1.1 204 No Content\r\n",
+	"HTTP/1.1 404 Not Found\r\n",
+	"Content-Length: ",
+	"Content-Type: ",
+	"Date: ",
+	"Server: ",
+	"Tk: ",
+	"Vary: "
+};
+
 http_response_headers_t *http_create_response_headers(size_t initial_size) {
 	http_response_headers_t *list = malloc(sizeof(http_response_headers_t));
 	if (!list)

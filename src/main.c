@@ -170,27 +170,45 @@ int main(int argc, char **argv) {
 		setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
 
 		TLS tls = tls_setup_client(client);
-		http_request_t *request = NULL;
 
 		if (tls) {
+			/*
 			const char *http_version, *http_version_minimal;
+			*/
 			TLS_AP ap = tls_get_ap(tls);
 			switch (ap) {
-				case TLS_AP_HTTP11:
+				case TLS_AP_HTTP11: {
+					/*
 					http_version = "HTTP/1.1";
 					http_version_minimal = "1.1";
-					request = http1_parse(tls);
-					break;
+					*/
+
+					http_header_list_t *request = http1_parse(tls);
+					if (request) {
+						http_response_t *response = http_handle_request(request);
+						http1_write_response(tls, response);
+
+						if (response->is_dynamic) {
+							free(response->body);
+							http_response_headers_destroy(response->headers);
+							free(response);
+						}
+						http_destroy_header_list(request);
+					}
+				} break;
 				case TLS_AP_HTTP2:
+					/*
 					http_version = "HTTP/2";
 					http_version_minimal = "2";
-					/*request = */http2_parse(tls);
+					*/
+					http2_handle(tls);
 					break;
 				default:
 					fputs("Invalid AP!\n", stderr);
 					goto clean;
 			}
 			
+			/*
 			if (request) {
 				http_response_t response = handle_request(*request);
 				tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
@@ -210,13 +228,9 @@ int main(int argc, char **argv) {
 				if (request_log_type != REQUEST_LOG_NONE)
 					puts("> Parser error");
 			}
+			*/
 		}
 		clean:
-		if (request) {
-			http_destroy_headers(request->headers);
-			free(request->method);
-			free(request);
-		}
 		close(client);
 	}
 
