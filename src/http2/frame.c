@@ -10,7 +10,7 @@
 #include "constants.h"
 
 frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
-	frame_t *f = malloc(sizeof(frame_t));
+	frame_t *f = calloc(1, sizeof(frame_t));
 	if (!f)
 		return NULL;
 	char *parts = calloc(4, sizeof(char));
@@ -18,6 +18,7 @@ frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
 	if (!tls_read_client_complete(tls, parts, 3)) {
 		free(f);
 		puts("0");
+		free(parts);
 		return NULL;
 	}
 	
@@ -32,34 +33,40 @@ frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
 	
 	if (!tls_read_client_complete(tls, (char *)&f->type, sizeof(f->type))) {
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	
 	if (f->length > max_size) {
 		printf("\x1b[36mFrame> type=%s (0x%x) (Error)\x1b[0m\n", frame_types[f->type], f->type);
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	
 	if (!tls_read_client_complete(tls, (char *)&f->flags, sizeof(f->flags))) {
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	
 	if (!tls_read_client_complete(tls, parts, 4)) {
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	f->r_s_id = u32(parts);
 	
 	if (!(f->data = malloc(sizeof(char) * f->length))) {
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	
 	if (f->length && !tls_read_client_complete(tls, f->data, f->length)) {
 		free(f->data);
 		free(f);
+		free(parts);
 		return NULL;
 	}
 	
