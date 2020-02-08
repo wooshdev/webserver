@@ -2,6 +2,7 @@
  * Copyright (C) 2019-2020 Tristan
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  */
+#include "client.h"
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -10,7 +11,6 @@
 #include <stdio.h>
 #include <signal.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>
 
 #include "server.h"
 #include "configuration/config.h"
@@ -18,7 +18,6 @@
 #include "utils/fileutil.h"
 #include "secure/tlsutil.h"
 #include "http/parser.h"
-#include "http/common.h"
 #include "utils/io.h"
 #include "handling/handlers.h"
 #include "http/http1.h"
@@ -165,73 +164,10 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 		
-		/* enable TCP_NODELAY */
-		int one = 1;
-		setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
-
-		TLS tls = tls_setup_client(client);
-
-		if (tls) {
-			/*
-			const char *http_version, *http_version_minimal;
-			*/
-			TLS_AP ap = tls_get_ap(tls);
-			switch (ap) {
-				case TLS_AP_HTTP11: {
-					/*
-					http_version = "HTTP/1.1";
-					http_version_minimal = "1.1";
-					*/
-
-					http_header_list_t *request = http1_parse(tls);
-					if (request) {
-						http_response_t *response = http_handle_request(request);
-						http1_write_response(tls, response);
-
-						if (response->is_dynamic) {
-							free(response->body);
-							http_response_headers_destroy(response->headers);
-							free(response);
-						}
-						http_destroy_header_list(request);
-					}
-				} break;
-				case TLS_AP_HTTP2:
-					/*
-					http_version = "HTTP/2";
-					http_version_minimal = "2";
-					*/
-					http2_handle(tls);
-					break;
-				default:
-					fputs("Invalid AP!\n", stderr);
-					goto clean;
-			}
-			
-			/*
-			if (request) {
-				http_response_t response = handle_request(*request);
-				tls_write_client(tls, response.content, response.size == 0 ? strlen(response.content) : response.size);
-				free(response.content);
-				
-				switch (request_log_type) {
-					case REQUEST_LOG_MINIMAL:
-						printf("> %s \"%s\" (%s) v=%s\n", request->method, request->path, http_common_log_status_names[response.status], http_version_minimal);
-						break;
-					case REQUEST_LOG_VERBOSE:
-						printf("> path='%s' status='%s' method='%s' version='%s' response: %zi\n", request->path, http_common_log_status_names[response.status], request->method, http_version, response.size);
-						break;
-					default:
-						break;
-				}
-			} else {
-				if (request_log_type != REQUEST_LOG_NONE)
-					puts("> Parser error");
-			}
-			*/
-		}
-		clean:
-		close(client);
+		int *data = malloc(sizeof(int));
+		*data = client;
+		
+		client_start(data);
 	}
 
 	handle_destroy();

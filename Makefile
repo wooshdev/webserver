@@ -13,7 +13,7 @@ CC = c89
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
 HTTPBINARIES = bin/http/parser.so bin/http/common.so bin/http/http1.so bin/http/header_list.so bin/http/response_headers.so
 HTTP2BINARIES = bin/http2/core.so bin/http2/constants.so bin/http2/dynamic_table.so bin/http2/frame.so bin/http2/hpack.so bin/http2/huffman.so bin/http2/static_table.so bin/http2/stream.so
-SUBBINARIES = bin/server.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so  bin/handling/handlers.so $(HTTPBINARIES) $(HTTP2BINARIES)
+SUBBINARIES = bin/server.o bin/client.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so  bin/handling/handlers.so $(HTTPBINARIES) $(HTTP2BINARIES)
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
 	$(CC) $(CFLAGS) -o $@ $< $(SUBBINARIES) $(LDFLAGS)
@@ -32,6 +32,8 @@ bin/file_util.o: src/utils/fileutil.c src/utils/fileutil.h
 bin/util.o: src/utils/util.c src/utils/util.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/server.o: src/server.c src/server.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/client.o: src/client.c src/client.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/secure/implopenssl.o: src/secure/impl/implopenssl.c src/secure/tlsutil.h bin/file_util.o src/secure/impl/ossl-ocsp.c
 	$(CC) -o $@ -c $(CFLAGS) $< $(LDFLAGS)
