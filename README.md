@@ -18,8 +18,9 @@ This project is currently in a very early stage, and a lot of unit/fuzztesting h
 The goal was to create a modern and fast web server, with a low memory footprint. The latter is so you can run this server on many systems.
 
 ## Requirements
-* C89 Compiler
-* OpenSSL(-dev)
+* C89 Compiler (most compilers can compile into C89)
+* [OpenSSL](https://www.openssl.org/ "OpenSSL") for the TLS layer.
+* [zlib](https://zlib.net/ "zlib") for GZIP Compression/Encoding
 * A POSIX-compliant operating system (e.g. Linux, BSD)
 
 ## License
