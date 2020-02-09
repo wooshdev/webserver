@@ -41,7 +41,9 @@ dynamic_table_t *dynamic_table_create(size_t client_max_size) {
 }
 
 void dynamic_table_destroy(dynamic_table_t *table) {
+	/*
 	printf("Destroying the dynamic table. Size: %zu, index_last: %zu\n", table->size, table->index_last);
+	*/
 	if (table->entries && table->size > 0 && table->index_last != table->client_max_size) {
 		size_t i;
 		for (i = 0; i < table->index_last + 1; i++) {

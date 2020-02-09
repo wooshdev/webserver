@@ -234,9 +234,9 @@ void http2_handle(TLS tls) {
 	settings[4].value = 16384;      /* initial value: 2^14 */
 	settings[5].id = 0x6;           /* SETTINGS_MAX_HEADER_LIST_SIZE */
 	settings[5].value = UINT32_MAX; /* initial value: unset */
-	
+	/*
 	puts("\x1b[32mbegin\x1b[0m");
-	
+	*/
 	char prefacebuf[24] = { 0 };
 	if (!tls_read_client_complete(tls, prefacebuf, 24) || !scomp(prefacebuf, preface, 24)) {
 		PRTERR("[H2] Preface io/comparison failure.\n");
@@ -420,7 +420,6 @@ void http2_handle(TLS tls) {
 		dynamic_table_destroy(dynamic_table);
 	if (headers)
 		http_destroy_header_list(headers);
-	puts("\x1b[32mend\x1b[0m");
 	return;
 }
 

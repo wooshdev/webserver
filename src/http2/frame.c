@@ -17,7 +17,6 @@ frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
 
 	if (!tls_read_client_complete(tls, parts, 3)) {
 		free(f);
-		puts("0");
 		free(parts);
 		return NULL;
 	}
