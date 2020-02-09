@@ -34,7 +34,6 @@ encoded_data_t *encode_gzip(const char *input, size_t length) {
 		return NULL;
 	}
 	
-	
 	z_stream strm;
 	strm.zalloc = Z_NULL;
 	strm.zfree  = Z_NULL;
@@ -46,6 +45,7 @@ encoded_data_t *encode_gzip(const char *input, size_t length) {
 	strm.avail_in = length;
 	
 	do {
+		/* I do this in a do-while loop since someone else did it (facepalm) but I haven't tested this code very good. */
 		strm.avail_out = length;
 		strm.next_out = out + strm.total_out;
 		CALL_ZLIB(deflate(&strm, Z_FINISH));
