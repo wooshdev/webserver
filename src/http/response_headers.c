@@ -75,15 +75,6 @@ int http_response_headers_add(http_response_headers_t *list, http_response_heade
 	header->name = name;
 	header->value = value ? strdup(value) : value;
 
-  /* The header value can actually be NULL, since some values of the static table are pre-defined.*/
-  /*
-	if (!header->value) {
-    puts("\x1b[31m[HTTPResponseHeaders] Error: Header value NULL (input or strdup error)\x1b[0m");
-		free(header);
-		return 0;
-	}
-  */
-
 	list->headers[list->count++] = header;
 	return 1;
 }

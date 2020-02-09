@@ -46,7 +46,6 @@ encoded_data_t *encode_gzip(const char *input, size_t length) {
 	strm.avail_in = length;
 	
 	do {
-		puts("GZip pass.");
 		strm.avail_out = length;
 		strm.next_out = out + strm.total_out;
 		CALL_ZLIB(deflate(&strm, Z_FINISH));
