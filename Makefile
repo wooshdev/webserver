@@ -11,7 +11,7 @@ LDFLAGS = -pthread `pkg-config --static --libs openssl`
 CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
-HTTPBINARIES = bin/http/parser.so bin/http/common.so bin/http/http1.so bin/http/header_list.so bin/http/response_headers.so
+HTTPBINARIES = bin/http/parser.so bin/http/common.so bin/http/http1.so bin/http/header_list.so bin/http/response_headers.so bin/http/header_parser.so
 HTTP2BINARIES = bin/http2/core.so bin/http2/constants.so bin/http2/dynamic_table.so bin/http2/frame.so bin/http2/hpack.so bin/http2/huffman.so bin/http2/static_table.so bin/http2/stream.so
 SUBBINARIES = bin/server.o bin/client.o bin/config_reader.o bin/config_validation.o bin/file_util.o bin/util.o bin/secure/implopenssl.o bin/io.so  bin/handling/handlers.so $(HTTPBINARIES) $(HTTP2BINARIES)
 
@@ -48,6 +48,8 @@ bin/http/common.so: src/http/common.c src/http/common.h bin/io.so src/utils/io.h
 bin/http/header_list.so: src/http/header_list.c src/http/header_list.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/http/response_headers.so: src/http/response_headers.c src/http/response_headers.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/http/header_parser.so: src/http/header_parser.c src/http/header_parser.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/handling/handlers.so: src/handling/handlers.c src/handling/handlers.h
 	$(CC) -o $@ -c $(CFLAGS) $<
