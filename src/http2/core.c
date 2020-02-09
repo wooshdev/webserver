@@ -171,7 +171,7 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 				pos += 1;
 				break;
 			case HTTP_RH_STATUS_404:
-				headers[pos] = 0x93; /* = 10001011 */
+				headers[pos] = 0x8D; /* = 10001101 */
 				pos += 1;
 				break;
 			default:
