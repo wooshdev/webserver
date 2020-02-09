@@ -29,7 +29,8 @@ typedef enum {
 	HTTP_RH_DATE = 0x5,
 	HTTP_RH_SERVER = 0x6,
 	HTTP_RH_TK = 0x7,
-	HTTP_RH_VARY = 0x8
+	HTTP_RH_VARY = 0x8,
+	HTTP_RH_CONTENT_ENCODING = 0x9
 } http_response_header_name;
 
 /* These are the text representation for HTTP/1.1 of the enums above,

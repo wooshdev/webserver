@@ -9,11 +9,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../utils/util.h"
+#include "../http/header_parser.h"
+#include "../utils/encoders.h"
 
 /*#include "fileserver.c"*/
 
 static const char *H2_BODY_ok = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>HTTP/2 now available!</h1></body>";
+/* written some junk text below so I can see the effectiveness of encoders. */
+static const char *H2_BODY_compression = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This content was encoded! Encoded content is faster than not-encoded content. This allows us to have greater performance. This performance is better.</h1></body>";
 static const char *H2_BODY_not_found = "<h1>File Not Found.</h1>";
 static const char *HTTP_VERSION_NAMES[] = { "?", "h1", "h2" };
 
@@ -56,9 +61,20 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 
 	const char *path = http_header_list_gets(request_headers, ":path");
 	printf("[Handler] Path: '%s' (v: %s)\n", path, HTTP_VERSION_NAMES[request_headers->version]);
+	
+	/** Encoding **/
+	compression_t compressor = COMPRESSION_TYPE_NONE;
+	const char *accept_encoding_value = http_header_list_gets(request_headers, "accept-encoding");
+	if (!accept_encoding_value) {
+		puts("[Handler] Warning: No encoding acceptable since it is NULL.");
+	} else {
+		compressor = http_parse_accept_encoding(accept_encoding_value);
+	}
+	const char *compression_names[] = { "ERROR", "NONE", "GZIP", "ANY" };
+	printf("[Handler] Encoding='%s'\n", compression_names[compressor]);
 	response->headers = http_create_response_headers(4);
 	
-	const char *possible_paths[] = { "/", "/favicon.ico" };
+	const char *possible_paths[] = { "/", "/favicon.ico", "/encoding" };
 	
 	switch (strswitch(path, possible_paths, sizeof(possible_paths) / sizeof(possible_paths[0]), CASEFLAG_DONT_IGNORE)) {
 		case 0:
@@ -70,6 +86,22 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 		case 1:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_204, NULL);
 			response->body = NULL;
+			break;
+		case 2:
+			http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
+			
+			if (compressor == COMPRESSION_TYPE_GZIP) {
+				encoded_data_t *data = encode_gzip(H2_BODY_compression, strlen(H2_BODY_compression));
+				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "gzip");
+				response->body = data->data;
+				size = data->size;
+				free(data);
+			} else {
+				puts("Warning: GZIP not used!");
+				response->body = strdup(H2_BODY_compression);
+				size = strlen(H2_BODY_compression);
+			}
 			break;
 		default:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_404, NULL);
@@ -89,7 +121,6 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 	
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
-	
 }
 
 http_response_t handle_request(http_request_t request) {

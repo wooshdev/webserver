@@ -152,6 +152,11 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
+			case HTTP_RH_CONTENT_ENCODING:
+				headers[pos] = 0x5A; /* = 01011010 */
+				pos += 1;
+				write_str(headers, header->value, &pos);
+				break;
 			case HTTP_RH_CONTENT_TYPE:
 				headers[pos] = 0x5F; /* = 01011111 */
 				pos += 1;

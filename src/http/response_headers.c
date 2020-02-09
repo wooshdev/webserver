@@ -18,7 +18,8 @@ const char *http_rhnames[] = {
 	"Date: ",
 	"Server: ",
 	"Tk: ",
-	"Vary: "
+	"Vary: ",
+	"Content-Encoding: "
 };
 
 http_response_headers_t *http_create_response_headers(size_t initial_size) {
