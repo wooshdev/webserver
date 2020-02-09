@@ -29,7 +29,6 @@ and/or
 #define HPACK_LOGGING_RESULTS
 */
 
-#define HPACK_LOGGING_KEY_VALUE
 #define HPACK_LOGGING_ERROR
 
 /*HPACK_LOGGING_VERBOSE enables everything */

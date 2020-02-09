@@ -37,7 +37,9 @@ static const char *settings_names[] = { NULL, "SETTINGS_HEADER_TABLE_SIZE", "SET
 
 static H2_ERROR handle_settings(frame_t *frame, setentry_t *settings) {
 	setentry_t ent;
-  printf("[\x1b[33mSettings\x1b[0m] \x1b[32mSize: %u Flags: 0x%x stream_id: 0x%x\n", frame->length, frame->flags, frame->r_s_id & 0xEF);
+	/*
+	printf("[\x1b[33mSettings\x1b[0m] \x1b[32mSize: %u Flags: 0x%x stream_id: 0x%x\n", frame->length, frame->flags, frame->r_s_id & 0xEF);
+	*/
 	if (frame->length > 0) {
 		size_t i;
 		for (i = 0; i < frame->length / 6; i++) {
@@ -58,7 +60,9 @@ static H2_ERROR handle_settings(frame_t *frame, setentry_t *settings) {
 			}
 			#endif
 			
+			/*
 			printf("[\x1b[33mSettings\x1b[0m] \x1b[32mName: %s Value: %u\n", settings_names[ent.id], ent.value);
+			*/
 			
 			settings[ent.id-1].value = ent.value;
 		}
@@ -129,16 +133,9 @@ static const char *simple = "<body style=\"color:white;background:black;display:
 static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_header_list, setentry_t *settings) {
 	http_response_t *response = http_handle_request(request_header_list);
 	
-	
 	/* headers MUST not get strings longer than 256 octets in size. */
 	char *length_buffer = calloc(256, sizeof(char));
 	sprintf(length_buffer, "%zu", strlen(simple));
-	
-	/*http_response_headers_t *list = http_create_response_headers(3);
-	http_response_headers_add(list, HTTP_RH_STATUS_200, NULL);
-	http_response_headers_add(list, HTTP_RH_CONTENT_LENGTH, length_buffer);
-	http_response_headers_add(list, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
-	http_response_headers_add(list, HTTP_RH_SERVER, "TheWooshServer");*/
 	
 	char *headers = calloc(1, 256);
 	size_t i, pos = 0;
@@ -193,7 +190,7 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
  	*/
 	free(length_buffer);
 
-	/* reparse to see if/where the (an) error is. */ {
+	/* reparse to see if/where the (an) error is. */ /*{
 		frame_t *temp_frame = malloc(sizeof(frame_t));
 		temp_frame->flags = FLAG_END_HEADERS;
 		temp_frame->length = pos;
@@ -204,14 +201,13 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 		dynamic_table_destroy(dynamic_table);
 		http_destroy_header_list(temp_headers);
 		free(temp_frame);
-	}
+	}*/
 	
-	
-	printf(" > sending HEADERS frame, len=%zu\n", pos);
+	/*printf(" > sending HEADERS frame, len=%zu\n", pos);*/
 	send_frame(tls, pos, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
 	
-	printf(" > sending DATA frame, len=%zu\n", response->body_size);
+	/*printf(" > sending DATA frame, len=%zu\n", response->body_size);*/
 	send_frame(tls, response->body_size, FRAME_DATA, FLAG_END_STREAM, frame->r_s_id, response->body);
 	
 	if (response->is_dynamic) {
@@ -375,12 +371,14 @@ void http2_handle(TLS tls) {
 					uint32_t wsi = u32(frame->data) & 0xEFFFFFFF;
 					if (window_size == wsi) {
 						/* connection error */
-						puts("illegal");
+						puts("Illegal Window Size! (i.e. a PROTOCOL_ERROR)");
 						send_rst(tls, H2_PROTOCOL_ERROR);
 						goto end;
 					}
+					/*
 					printf(" > Size Increment: 0x%X or 0x%X = %u %u\n", u32(frame->data), wsi, u32(frame->data), wsi);
 					printf(" > Additional data: a=0x%hhx b=0x%hhx c=0x%hhx d=0x%hhx\n", frame->data[0], frame->data[1], frame->data[2], frame->data[3]);
+					*/
 					break;
 				case FRAME_CONTINUATION:
 					switch (previous_type) {

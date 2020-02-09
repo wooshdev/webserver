@@ -70,7 +70,9 @@ frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
 		return NULL;
 	}
 	
+	#ifdef FRAME_READ_ANNOUNCE
 	printf("\x1b[36mFrame> type=%s (0x%x) stream=%x length=%u\x1b[0m\n", frame_types[f->type], f->type, f->r_s_id, f->length);
+	#endif
 	
 	free(parts);
 	return f;
@@ -89,11 +91,13 @@ frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {
  */
 /*#define FRAME_SEND_DEBUG*/
 int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream, const char *data) {
+	#ifdef FRAME_SEND_DEBUG_VERBOSE
 	printf("[\x1b[33mSendFrame\x1b[0m] \x1b[33mType: %s Stream: 0x%x\x1b[0m\n", frame_types[(size_t)type], stream);
+	#endif
   
-  #ifdef FRAME_SEND_DEBUG
+	#ifdef FRAME_SEND_DEBUG_VERBOSE
 	printf("\x1b[33m`-> length=%u type=%hi flags=0x%hx stream=%u pdata=%p\n\x1b[0m", length, type, flags, stream, data);
-  #endif 
+	#endif
   
 	char *buf = malloc(9 + length);
 	if (!buf) return 0;
@@ -107,19 +111,19 @@ int send_frame(TLS tls, uint32_t length, char type, char flags, uint32_t stream,
 	buf[7] = stream >> 8;
 	buf[8] = stream & 0x000000FF;
 	
-  #ifdef FRAME_SEND_DEBUG
-  printf("%i %i\n", !!(data), !!(length));
-  #endif
+	#ifdef FRAME_SEND_DEBUG_VERBOSE
+	printf("%i %i\n", !!(data), !!(length));
+	#endif
   
 	if (data && length) {
 		memcpy(buf+9, data, length);
   }
   
-  #ifdef FRAME_SEND_DEBUG
+	#ifdef FRAME_SEND_DEBUG_VERBOSE
 	size_t j;
 	for (j = 0; j < 9 + length; j++)
 		printf("\x1b[33m> (%zu) 0x%hhx\n\x1b[0m", j, buf[j]);
-  #endif
+	#endif
   
 	int res = tls_write_client(tls, buf, 9 + length);
 	free(buf);
