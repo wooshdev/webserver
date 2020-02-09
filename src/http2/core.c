@@ -283,6 +283,7 @@ void http2_handle(TLS tls) {
 		
 		send_settings_ack(tls);
 		headers = http_create_header_list();
+		headers->version = HTTP_VERSION_2;
 		
 		size_t previous_type = 0x4;
 		
@@ -318,6 +319,7 @@ void http2_handle(TLS tls) {
 						h2_handle(tls, frame, headers, settings);
 						http_destroy_header_list(headers);
 						headers = http_create_header_list();
+						headers->version = HTTP_VERSION_2;
 					}
 					break;
 				case FRAME_PRIORITY: {

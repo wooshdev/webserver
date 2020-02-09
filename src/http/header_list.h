@@ -27,6 +27,11 @@ typedef enum {
 	HTTP_HEADER_NOT_CACHED = 0x3
 } http_header_type;
 
+typedef enum {
+	HTTP_VERSION_1 = 0x1,
+	HTTP_VERSION_2 = 0x2
+} http_version_type;
+
 typedef struct {
 	http_header_type type;
 	http_defined_name_type defined_name;
@@ -39,6 +44,7 @@ typedef struct {
 	size_t count;
 	/* Important: size != count */
 	size_t size;
+	http_version_type version;
 } http_header_list_t;
 
 /** debugging purposes */

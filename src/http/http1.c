@@ -60,6 +60,7 @@ http_header_list_t *http1_parse(TLS tls) {
 	http_header_list_t *headers = http_create_header_list();
 	if (!headers)
 		return headers;
+	headers->version = HTTP_VERSION_1;
 
 	char *method = calloc(HTTP1_LONGEST_METHOD, sizeof(char));
 	char *path = calloc(HTTP_PATH_MAX - 1, sizeof(char));

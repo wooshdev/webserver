@@ -15,6 +15,7 @@
 
 static const char *H2_BODY_ok = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>HTTP/2 now available!</h1></body>";
 static const char *H2_BODY_not_found = "<h1>File Not Found.</h1>";
+static const char *HTTP_VERSION_NAMES[] = { "?", "h1", "h2" };
 
 int handle_setup(config_t config) {
 	const char *filenames_cfg = config_get(config, "handlers");
@@ -52,9 +53,9 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 	http_response_t *response = malloc(sizeof(http_response_t));
 	response->is_dynamic = 1;
 	size_t size = 0;
-	
+
 	const char *path = http_header_list_gets(request_headers, ":path");
-	printf("[Handler] Path: %s\n", path);
+	printf("[Handler] Path: '%s' (v: %s)\n", path, HTTP_VERSION_NAMES[request_headers->version]);
 	response->headers = http_create_response_headers(4);
 	
 	const char *possible_paths[] = { "/", "/favicon.ico" };
