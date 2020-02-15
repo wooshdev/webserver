@@ -20,6 +20,7 @@ static const char *H2_BODY_ok = "<body style=\"color:white;background:black;disp
 /* written some junk text below so I can see the effectiveness of encoders. */
 static const char *H2_BODY_compression = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This content was encoded! Encoded content is faster than not-encoded content. This allows us to have greater performance. This performance is better.</h1></body>";
 static const char *H2_BODY_not_found = "<h1>File Not Found.</h1>";
+static const char *H2_BODY_method_not_supported = "<h1>Method not supported!</h1>";
 static const char *HTTP_VERSION_NAMES[] = { "?", "h1", "h2" };
 
 int handle_setup(config_t config) {
@@ -61,6 +62,26 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 
 	const char *path = http_header_list_gets(request_headers, ":path");
 	printf("[Handler] Path: '%s' (v: %s)\n", path, HTTP_VERSION_NAMES[request_headers->version]);
+
+	const char *method = http_header_list_getd(request_headers, HEADER_METHOD);
+	if (!method || !strcmp(method, "GET")) {
+		printf("[Handler] Unsupported method: %s\n", method);
+		response->headers = http_create_response_headers(4);
+
+		size_t size = strlen(H2_BODY_method_not_supported);
+		char *length_buffer = calloc(128, sizeof(char));
+		sprintf(length_buffer, "%zu", size);
+		response->body_size = size;
+
+		http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
+		http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
+		http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
+		free(length_buffer);
+		http_response_headers_add(response->headers, HTTP_RH_SERVER, "TheWooshServer");
+
+		response->body = strdup(H2_BODY_method_not_supported);
+		return response;
+	}
 	
 	/** Encoding **/
 	compression_t compressor = COMPRESSION_TYPE_NONE;
@@ -116,6 +137,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 	sprintf(length_buffer, "%zu", size);
 	
 	http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
+	free(length_buffer);
 	http_response_headers_add(response->headers, HTTP_RH_SERVER, "TheWooshServer");
 	
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
