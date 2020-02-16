@@ -18,7 +18,7 @@
 
 static const char *H2_BODY_ok = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>HTTP/2 now available!</h1></body>";
 /* written some junk text below so I can see the effectiveness of encoders. */
-static const char *H2_BODY_compression = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This content was encoded! Encoded content is faster than not-encoded content. This allows us to have greater performance. This performance is better.</h1></body>";
+static const char *H2_BODY_compression = "<!doctype html><html lang=\"en\"><head><meta name=\"description\" content=\"Main page for webserver.\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>webserver</title></head><body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This content was encoded! Encoded content is faster than not-encoded content. This allows us to have greater performance. This performance is better.</h1></body></html>";
 static const char *H2_BODY_not_found = "<h1>File Not Found.</h1>";
 static const char *H2_BODY_method_not_supported = "<h1>Method not supported!</h1>";
 static const char *HTTP_VERSION_NAMES[] = { "?", "h1", "h2" };
@@ -64,8 +64,11 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 	printf("[Handler] Path: '%s' (v: %s)\n", path, HTTP_VERSION_NAMES[request_headers->version]);
 
 	const char *method = http_header_list_getd(request_headers, HEADER_METHOD);
-	if (!method || !strcmp(method, "GET")) {
+	if (!method)
+		method = http_header_list_gets(request_headers, ":method");
+	if (!method || strcmp(method, "GET") != 0) {
 		printf("[Handler] Unsupported method: %s\n", method);
+
 		response->headers = http_create_response_headers(4);
 
 		size_t size = strlen(H2_BODY_method_not_supported);
