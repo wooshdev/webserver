@@ -8,14 +8,13 @@
 
 #include "../utils/io.h"
 
+#include "base/global_settings.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #define DATE_FORMATTED_SIZE 64
-
-char http_header_server_name[128];
-char http_host[128];
 
 const char *http_common_log_status_names[] = { "?", "ok", "client error", "server error" };
 
@@ -84,7 +83,7 @@ void http_handle_error_gracefully(TLS source, HTTP_ERROR error, const char *info
 		strlen(status) +
 		strlen(connection) + 
 		strlen(date) + 
-		strlen(http_header_server_name) +
+		strlen(GLOBAL_SETTING_server_name) +
 		strlen(supported_methods) + 
 		strlen(content_length);
 	
@@ -94,7 +93,7 @@ void http_handle_error_gracefully(TLS source, HTTP_ERROR error, const char *info
 	for (i = 0; i < buffer_size; i++)
 		buffer[i] = 'A';
 	
-	sprintf(buffer, format, status, connection, date, supported_methods, http_header_server_name, content_length);
+	sprintf(buffer, format, status, connection, date, supported_methods, GLOBAL_SETTING_server_name, content_length);
 	strcpy(buffer + response_size, body);
 	
 	tls_write_client(source, buffer, buffer_size);

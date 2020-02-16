@@ -22,6 +22,7 @@
 #include "handling/handlers.h"
 #include "http/http1.h"
 #include "http2/core.h"
+#include "base/global_settings.h"
 
 /* This array is defined by src/http/common.c */
 extern const char *http_common_log_status_names[];
@@ -84,12 +85,10 @@ int main(int argc, char **argv) {
 		fputs("[Config] Invalid configuration.\nQuitting!\n", stderr);
 		return EXIT_FAILURE;
 	}
-	
+
+	GLOBAL_SETTINGS_load(config);
+
 	/** static configuration options: **/
-	/* set the http/common.h server name field, which should be used as the 'Server' header value.*/
-	strcpy(http_header_server_name, config_get_default(config, "server-name", default_server_name));
-	strcpy(http_host, config_get(config, "hostname"));
-	
 	http_headers_strict = config_get_bool(config, "headers-strict", 0);
 	http_host_strict = config_get_bool(config, "hostname-strict", 0);
 
@@ -173,6 +172,7 @@ int main(int argc, char **argv) {
 	handle_destroy();
 	close(sock);
 	tls_destroy();
+	GLOBAL_SETTINGS_destroy();
 	
 	return EXIT_SUCCESS;
 }

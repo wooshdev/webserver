@@ -14,6 +14,8 @@
 #include "../http/header_parser.h"
 #include "../utils/encoders.h"
 
+#include "base/global_settings.h"
+
 /*#include "fileserver.c"*/
 
 static const char *H2_BODY_ok = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>HTTP/2 now available!</h1></body>";
@@ -80,7 +82,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 		http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
 		http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
 		free(length_buffer);
-		http_response_headers_add(response->headers, HTTP_RH_SERVER, "TheWooshServer");
+		http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
 
 		response->body = strdup(H2_BODY_method_not_supported);
 		return response;
@@ -141,7 +143,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 	
 	http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
 	free(length_buffer);
-	http_response_headers_add(response->headers, HTTP_RH_SERVER, "TheWooshServer");
+	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
 	
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;

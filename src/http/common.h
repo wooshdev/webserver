@@ -16,10 +16,6 @@
 #define HTTP_HEADERS_VALUE_MAX_LENGTH 1024
 #define HTTP_HEADERS_MAX 64
 
-/* Defined by the application*/
-extern char http_header_server_name[128];
-extern char http_host[128];
-
 /**
  * Description:
  *   Should the header parser be strict? I.e. only allow for IANA registered headers.

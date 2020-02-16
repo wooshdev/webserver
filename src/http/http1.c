@@ -10,6 +10,8 @@
 #include "../utils/io.h"
 #include <stdlib.h>
 
+#include "base/global_settings.h"
+
 const char *h1_last_line = "\r\n";
 
 static char *compose_header_line(size_t *sbuffer, unsigned name, const char *value) {
@@ -111,7 +113,7 @@ http_header_list_t *http1_parse(TLS tls) {
 	}
 	
 	const char *hostv;
-	if (http_host_strict && (hostv = http_header_list_getd(headers, HEADER_AUTHORITY)) && strcmp(http_host, hostv)) {
+	if (http_host_strict && (hostv = http_header_list_getd(headers, HEADER_AUTHORITY)) && strcmp(GLOBAL_SETTING_host, hostv)) {
 		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, version, 0);
 		goto clean;
 	}
