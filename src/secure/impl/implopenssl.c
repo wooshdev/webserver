@@ -208,6 +208,10 @@ int tls_setup(secure_config_t *sconfig) {
 		
 		SSL_CTX_set_tlsext_status_cb(ctx, cert_status_cb);
 		SSL_CTX_set_tlsext_status_arg(ctx, &ocsp_data);
+		
+		if (!setup_ocsp(&ocsp_data)) {
+			puts("Failed to setup OCSP.");
+		}
 	}
 	
 	return 1;

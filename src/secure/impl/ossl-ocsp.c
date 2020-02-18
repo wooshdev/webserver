@@ -13,17 +13,22 @@ typedef struct {
 	char *file;
 } ocsp_data_t;
 
+unsigned char *rspder = NULL;
+int rspderlen;
+
 /*
  * Certificate Status callback. This is called when a client includes a
  * certificate status request extension. The response is either obtained from a
  * file, or from an OCSP responder.
  */
 static int cert_status_cb(SSL *s, void *arg) {
-    ocsp_data_t *data = arg;
+	SSL_set_tlsext_status_ocsp_resp(s, rspder, rspderlen);
+	return SSL_TLSEXT_ERR_OK;
+}
+
+int setup_ocsp(ocsp_data_t *data) {
     OCSP_RESPONSE *resp = NULL;
-    unsigned char *rspder = NULL;
-    int rspderlen;
-    int ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+    int ret = 0;
 
     if (data->file) {
 		FILE *file = fopen(data->file, "r");
@@ -56,19 +61,15 @@ static int cert_status_cb(SSL *s, void *arg) {
     rspderlen = i2d_OCSP_RESPONSE(resp, &rspder);
     if (rspderlen <= 0)
         goto err;
-
-    SSL_set_tlsext_status_ocsp_resp(s, rspder, rspderlen);
 	
 	/*puts("cert_status: ocsp response sent:");
     OCSP_RESPONSE_print(bio_err, resp, 2);*/
 
     ret = SSL_TLSEXT_ERR_OK;
-
- err:
-    if (ret != SSL_TLSEXT_ERR_OK)
-        ERR_print_errors_fp(stderr);
-
+	goto end;
+err:
+	ret = 0;
+end:
     OCSP_RESPONSE_free(resp);
-
     return ret;
 } 
