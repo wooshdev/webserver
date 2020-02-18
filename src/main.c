@@ -17,6 +17,7 @@
 #include "client.h"
 #include "configuration/config.h"
 #include "handling/handlers.h"
+#include "http/header_parser.h"
 #include "http/http1.h"
 #include "http/parser.h"
 #include "http2/core.h"
@@ -97,6 +98,11 @@ int main(int argc, char **argv) {
 	}
 
 	GLOBAL_SETTINGS_load(config);
+	
+	if (!http_header_parser_setup(config_get(config, "compression"))) {
+		fputs("Failed to setup HTTP header parser!\n", stderr);
+		return EXIT_FAILURE;
+	}
 
 	/** static configuration options: **/
 	http_headers_strict = config_get_bool(config, "headers-strict", 0);
@@ -189,6 +195,7 @@ int main(int argc, char **argv) {
 	tls_destroy();
 	GLOBAL_SETTINGS_destroy();
 	encoder_destroy();
+	http_header_parser_destroy();
 	
 	return EXIT_SUCCESS;
 }

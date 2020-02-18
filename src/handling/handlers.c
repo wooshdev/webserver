@@ -119,7 +119,6 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	if (accept_encoding_value) {
 		compressor = http_parse_accept_encoding(accept_encoding_value);
 	}
-	printf("accept-encoding=%s compressor=%u\n", accept_encoding_value, compressor);
 	response->headers = http_create_response_headers(4);
 	
 	const char *possible_paths[] = { "/", "/favicon.ico", "/encoding" };

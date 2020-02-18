@@ -17,7 +17,7 @@ typedef enum {
 } compression_t;
 
 /** Global Variables **/
-extern compression_t hp_compressors[];
+extern compression_t *hp_compressors;
 
 /** Functions **/
 /**
@@ -32,5 +32,24 @@ extern compression_t hp_compressors[];
  *   The best available compression type.
  */
 compression_t http_parse_accept_encoding(const char *);
+
+/**
+ * Description:
+ *   This function sets the parser up.
+ *
+ * Parameters:
+ *   const char *
+ *     The value of the "compression" config option.
+ *
+ * Return Value:
+ *   (boolean) Success Status
+ */
+int http_header_parser_setup(const char *);
+
+/**
+ * Description:
+ *   This function destroys all data allocated by http_header_parser_setup.
+ */
+void http_header_parser_destroy(void);
 
 #endif /* HTTP_HEADER_PARSER_H */

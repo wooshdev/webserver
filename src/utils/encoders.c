@@ -50,6 +50,8 @@ int encoder_setup(void) {
 		brotli_window = BROTLI_DEFAULT_WINDOW;
 		brotli_mode = BROTLI_DEFAULT_MODE;
 		ENCODER_STATUS_brotli = 1;
+	#else
+		ENCODER_STATUS_brotli = 0;
 	#endif /* ENCODERS_ENABLE_BROTLI */
 	ENCODER_STATUS_gzip = 1;
 

@@ -5,7 +5,8 @@
  */
 #include "header_parser.h"
 
-#include "../utils/util.h"
+#include "utils/util.h"
+#include "utils/encoders.h"
 
 #define _DEFAULT_SOURCE
 
@@ -14,11 +15,74 @@
 #include <string.h>
 
 /** Global Variables **/
-#define COMPRESSORS_SIZE 4
-compression_t hp_compressors[] = { COMPRESSION_TYPE_BROTLI, COMPRESSION_TYPE_GZIP, COMPRESSION_TYPE_ANY, COMPRESSION_TYPE_NONE };
+size_t compressor_count;
+compression_t *hp_compressors;
 
 /** Non-Global Variables **/
-static const char *cchp_compressors[] = { "br", "gzip", "*", "identity" };
+static const char **cchp_compressors;
+
+int http_header_parser_setup(const char *configuration) {
+	if (configuration == NULL) {
+		puts("[Config] Parser Error: 'compression' configuration option not set!");
+		return 0;
+	}
+	
+	cchp_compressors = calloc(4, sizeof(const char *));
+	hp_compressors = calloc(4, sizeof(compression_t));
+
+	char *srctext = strdup(configuration);
+	char *text = srctext;
+	char **ptext = &text;
+	char *token;
+	while ((token = strsep(ptext, " "))) {
+		if (strcasecmp(token, "br") == 0 || strcasecmp(token, "brotli") == 0) {
+			if (!ENCODER_STATUS_brotli) {
+				printf("[Config] Compression algorithm \"%s\" was requested in the configuration, but this build doesn't support it!\n", token);
+				free(srctext);
+				return 0;
+			}
+			cchp_compressors[compressor_count] = "br";
+			hp_compressors[compressor_count] = COMPRESSION_TYPE_BROTLI;
+		} else if (strcasecmp(token, "gzip") == 0) {
+			if (!ENCODER_STATUS_gzip) {
+				printf("[Config] Compression algorithm \"%s\" was requested in the configuration, but this build doesn't support it!\n", token);
+				free(srctext);
+				return 0;
+			}
+			cchp_compressors[compressor_count] = "gzip";
+			hp_compressors[compressor_count] = COMPRESSION_TYPE_GZIP;
+		} else {
+			printf("[Config] Parser Error: invalid compression type: \"%s\".\n", token);
+			free(srctext);
+			return 0;
+		}
+
+		size_t i;
+		for (i = 0; i < compressor_count; i++) {
+			if (hp_compressors[i] == hp_compressors[compressor_count]) {
+				printf("[Config] Parser Error: Duplicate entry of compression type: \"%s\", first found at %zu then at %zu!\n", cchp_compressors[i], i, compressor_count);
+				free(srctext);
+				return 0;
+			}
+		}
+
+		compressor_count++;
+	}
+	free(srctext);
+
+	cchp_compressors[compressor_count] = "*";
+	cchp_compressors[compressor_count + 1] = "identity";
+	hp_compressors[compressor_count] = COMPRESSION_TYPE_ANY;
+	hp_compressors[compressor_count + 1] = COMPRESSION_TYPE_NONE;
+	compressor_count += 2;
+
+	return 1;
+}
+
+void http_header_parser_destroy(void) {
+	free(cchp_compressors);
+	free(hp_compressors);
+}
 
 /* TODO:
  *   Use the variables in encoders.h (ENCODER_STATUS_gzip and ENCODER_STATUS_brotli)
@@ -34,8 +98,7 @@ compression_t http_parse_accept_encoding(const char *input) {
 	}
 
 	double best_quality = 0;
-	compression_t best_compressors[COMPRESSORS_SIZE];
-	memset(&best_compressors, 0, sizeof(best_compressors[0]) * COMPRESSORS_SIZE);
+	compression_t *best_compressors = calloc(compressor_count, sizeof(compression_t));
 	size_t best_compressor_length = 0;
 	
 	char *srctext = strdup(input);
@@ -91,10 +154,10 @@ compression_t http_parse_accept_encoding(const char *input) {
 
 			/* is the value in the cchp_compressors list? */
 			size_t i;
-			for (i = 0; i < COMPRESSORS_SIZE; i++) {
+			for (i = 0; i < compressor_count; i++) {
 				if (strcasecmp(name, cchp_compressors[i]) == 0) {
 					if (best_compressor_length == 0 || best_quality < quality) {
-						memset(&best_compressors, 0, sizeof(best_compressors[0]) * COMPRESSORS_SIZE);
+						memset(best_compressors, 0, sizeof(compression_t) * compressor_count);
 						best_compressor_length = 1;
 						best_compressors[0] = hp_compressors[i];
 						best_quality = quality;
@@ -113,15 +176,15 @@ compression_t http_parse_accept_encoding(const char *input) {
 	/* if the client has more than 1 favorite, the server may decide. */
 	if (best_compressor_length > 1) {
 		size_t i, j;
-		for (i = 0; i < COMPRESSORS_SIZE; i++) {
+		for (i = 0; i < compressor_count; i++) {
 			for (j = 0; j < best_compressor_length; j++) {
-				printf("hp=%u cchp=%s\n", hp_compressors[i], cchp_compressors[i]);
 				if (hp_compressors[i] == best_compressors[j]) {
 					return hp_compressors[i];
 				}
 			}
 		}
 	}
+	free(best_compressors);
 
 	if (best_compressor_length == 0)
 		return COMPRESSION_TYPE_NONE;
@@ -129,6 +192,7 @@ compression_t http_parse_accept_encoding(const char *input) {
 	return best_compressors[0];
 error:
 	/*puts("[DEBUG] Parser error on quality parser");*/
+	free(best_compressors);
 error_wl:
 	free(srctext);
 	return COMPRESSION_TYPE_ERROR;
