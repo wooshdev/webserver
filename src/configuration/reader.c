@@ -47,8 +47,16 @@ config_t config_readf(FILE *fp) {
 		/* find the first comment character in the string and end the string there. this effectively 'removes' comments from lines. */
 		char *occurrence_comment = strchr(chunk, ';');
 		if (occurrence_comment) {
-			*occurrence_comment = '\0';
-			length = occurrence_comment - chunk;
+			int slash = *(occurrence_comment-1) == '\\';
+			if (occurrence_comment == chunk || !slash) {
+				*occurrence_comment = '\0';
+				length = occurrence_comment - chunk;
+			}
+			if (slash)
+				do {
+					memcpy(occurrence_comment-1, occurrence_comment, CONFIG_CHUCK_SIZE-(occurrence_comment-chunk)-1);
+					occurrence_comment = strchr(occurrence_comment+1, ';');
+				} while (occurrence_comment != NULL && *(occurrence_comment-1) == '\\');
 		}
 
 		/* don't parse empty lines, there is no point */
