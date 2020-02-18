@@ -12,12 +12,13 @@
 #include <fcntl.h>
 #include <netinet/tcp.h>
 
+#include "base/thread_manager.h"
 #include "handling/handlers.h"
 #include "http/http1.h"
 #include "http2/core.h"
 #include "secure/tlsutil.h"
 
-void client_start(void *data) {
+void client_start_actual(void *data) {
 	int client = *((int *) data);
 	free(data);
 	
@@ -70,4 +71,19 @@ void client_start(void *data) {
 	clean:
 	puts("closed connection.");
 	close(client);
+}
+
+static void *run(void *data) {
+	client_start_actual(data);
+	thread_manager_finished();
+	return NULL;
+}
+
+void client_start(void *data) {
+	int result = thread_manager_add(run, data);
+	if (result != 1) {
+		printf("thread_manager_add failure: %i\n", result);
+		close(*((int *) data));
+		free(data);
+	}
 }

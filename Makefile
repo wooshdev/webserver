@@ -26,6 +26,7 @@ HTTP2BINARIES =		bin/http2/constants.so \
 					bin/http2/static_table.so \
 					bin/http2/stream.so
 GENERALBINARIES =	bin/base/global_settings.so \
+					bin/base/thread_manager.so \
 					bin/client.so \
 					bin/config/reader.so \
 					bin/config/validation.so \
@@ -54,6 +55,8 @@ bin/build.txt: # a hack to create the bin folder only once
 # General Binaries
 bin/base/global_settings.so: src/base/global_settings.c src/base/global_settings.h src/configuration/config.h
 	$(CC) -o $@ -c $(CFLAGS) $<
+bin/base/thread_manager.so: src/base/thread_manager.c src/base/thread_manager.h
+	$(CC) -o $@ -c $(CFLAGS) $< -pthread
 bin/client.so: src/client.c src/client.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/config/reader.so: src/configuration/reader.c src/configuration/config.h

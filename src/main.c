@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 
 #include "base/global_settings.h"
+#include "base/thread_manager.h"
 #include "client.h"
 #include "configuration/config.h"
 #include "handling/handlers.h"
@@ -98,7 +99,12 @@ int main(int argc, char **argv) {
 	}
 
 	GLOBAL_SETTINGS_load(config);
-	
+
+	if (!thread_manager_setup(config)) {
+		fputs("\x1b[31mFailed to setup thread manager!\n", stderr);
+		return EXIT_FAILURE;
+	}
+
 	if (!http_header_parser_setup(config_get(config, "compression"))) {
 		fputs("Failed to setup HTTP header parser!\n", stderr);
 		return EXIT_FAILURE;
@@ -189,6 +195,7 @@ int main(int argc, char **argv) {
 		
 		client_start(data);
 	}
+	thread_manager_wait_or_kill();
 
 	handle_destroy();
 	close(sock);
@@ -196,7 +203,7 @@ int main(int argc, char **argv) {
 	GLOBAL_SETTINGS_destroy();
 	encoder_destroy();
 	http_header_parser_destroy();
-	
+
 	return EXIT_SUCCESS;
 }
  
