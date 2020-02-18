@@ -155,7 +155,7 @@ compression_t http_parse_accept_encoding(const char *input) {
 			/* is the value in the cchp_compressors list? */
 			size_t i;
 			for (i = 0; i < compressor_count; i++) {
-				if (strcasecmp(name, cchp_compressors[i]) == 0) {
+				if (strcasecmp(name, cchp_compressors[i]) == 0 || (hp_compressors[i] == COMPRESSION_TYPE_GZIP && strcasecmp(name, "x-gzip") == 0)) {
 					if (best_compressor_length == 0 || best_quality < quality) {
 						memset(best_compressors, 0, sizeof(compression_t) * compressor_count);
 						best_compressor_length = 1;
