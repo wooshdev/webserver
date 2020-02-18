@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef BENCHMARK
+#include <time.h>
+#endif
+
 #include "http/parser.h"
 #include "utils/io.h"
 #include "utils/util.h"
@@ -309,8 +313,11 @@ void http2_handle(TLS tls) {
 		headers->version = HTTP_VERSION_2;
 		
 		size_t previous_type = 0x4;
-		
+
 		while ((frame = readfr(tls, settings[4].value, &error))) {
+			#ifdef BENCHMARK			
+				clock_t start_time = clock();
+			#endif
 			switch (frame->type) {
 				case FRAME_DATA:
 					
@@ -419,7 +426,12 @@ void http2_handle(TLS tls) {
 					puts("\x1b[31m > Type unknown (the frame is ignored without any consequence(s)).\x1b[0m");
 					break;
 			}
-			
+
+
+#ifdef BENCHMARK
+			printf("\033[0;33mFrame> \033[0;32m%s \033[0mtook \033[0;35m%.3f ms\033[0m to process...\n", frame_types[frame->type], (clock()-start_time)/1000.0);
+#endif
+
 			free(frame->data);
 			previous_type = frame->type;
 			free(frame);

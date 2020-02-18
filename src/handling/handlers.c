@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef BENCHMARK
+#include <time.h>
+#endif
+
 #include "base/global_settings.h"
 
 #include "http/header_parser.h"
@@ -123,7 +127,6 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	
 	const char *possible_paths[] = { "/", "/favicon.ico", "/encoding" };
 
-
 	switch (strswitch(path, possible_paths, sizeof(possible_paths) / sizeof(possible_paths[0]), CASEFLAG_DONT_IGNORE)) {
 		case 0:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
@@ -149,6 +152,9 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			break;
 	}
 
+#ifdef BENCHMARK
+	clock_t start_time_compression = clock();
+#endif
 	if (size > 0) {
 		encoded_data_t *encoded_data = NULL;
 		if (compressor == COMPRESSION_TYPE_GZIP) {
@@ -171,6 +177,9 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 		response->body = NULL;
 		response->body_size = 0;
 	}
+#ifdef BENCHMARK
+	printf("\033[0;33mCompression> \033[0;32m%s \033[0mtook \033[0;35m%.3f ms\033[0m to process...\n", response->headers->headers[response->headers->count-1]->value, (clock()-start_time_compression)/1000.0);
+#endif
 
 	handle_write_length(response->headers, size);
 	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
