@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	
-	config_t config = config_read("test.ini");
+	config_t config = config_read("config.ini");
 	if (!config_validate(config)) {
 		fputs("[Config] Invalid configuration.\nQuitting!\n", stderr);
 		return EXIT_FAILURE;
