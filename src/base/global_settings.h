@@ -17,6 +17,10 @@
 void GLOBAL_SETTINGS_load(config_t);
 void GLOBAL_SETTINGS_destroy();
 
+/** This is the 'signal' from the main thread requesting the cancellation of the execution of the program. 
+  * This isn't really a setting as much as it is a global variable. */
+extern int GLOBAL_SETTINGS_cancel_requested;
+
 /** This is what the requests' 'Host' header should be. */
 extern char *GLOBAL_SETTING_host;
 

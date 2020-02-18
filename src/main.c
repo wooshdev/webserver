@@ -3,6 +3,7 @@
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  */
 #include "client.h"
+#include <errno.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -23,6 +24,7 @@
 #include "http/http1.h"
 #include "http2/core.h"
 #include "base/global_settings.h"
+#include "utils/threads.h"
 
 /* This array is defined by src/http/common.c */
 extern const char *http_common_log_status_names[];
@@ -51,9 +53,10 @@ static int sock;
 REQUEST_LOG_TYPE request_log_type = REQUEST_LOG_MINIMAL;
 
 static void catch_signal(int signo, siginfo_t *info, void *context) {
-  if (signo == SIGINT && socket_initialized) {
-    close(sock);
-  }
+	if (signo == SIGINT && socket_initialized) {
+		GLOBAL_SETTINGS_cancel_requested = 1;
+		close(sock);
+	}
 }
 
 int main(int argc, char **argv) {
@@ -154,12 +157,17 @@ int main(int argc, char **argv) {
 	
 	/* Handle connections */
 	uint32_t len = sizeof(struct sockaddr_in);
-	while(1) {
+	while(!GLOBAL_SETTINGS_cancel_requested) {
 		struct sockaddr_in addr;
 
 		int client = accept(sock, (struct sockaddr*)&addr, &len);
 		if (client < 0) {
-			perror("Client acceptance failure");
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				threads_yield_thread();
+				continue;
+			}
+			
+			perror("Unknown client acceptance failure");
 			exit(EXIT_FAILURE);
 		}
 		

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -24,9 +25,21 @@ socket_t server_create_socket(uint16_t port) {
 		exit(EXIT_FAILURE);
 	}
   
-  int enable = 1;
-  if (setsockopt(created_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
-    perror("Server: Failed to set SO_REUSEADDR option.");
+	int enable = 1;
+	if (setsockopt(created_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+		perror("Server: Failed to set SO_REUSEADDR option.");
+
+	int flags = fcntl(created_socket, F_GETFL);
+	if (flags == -1) {
+		perror("Failed to get server-socket flags");
+		exit(EXIT_FAILURE);
+	}
+
+	int status = fcntl(created_socket, F_SETFL, flags | O_NONBLOCK);
+	if (status == -1) {
+		perror("Failed to make server-socket non-blocking");
+		exit(EXIT_FAILURE);
+	}
 
 	if (bind(created_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("Server: Unable to bind");
