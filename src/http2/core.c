@@ -9,11 +9,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "../http/parser.h"
-#include "../utils/io.h"
-#include "../utils/util.h"
-#include "../http/header_list.h"
-#include "../http/response_headers.h"
+#include "http/parser.h"
+#include "utils/io.h"
+#include "utils/util.h"
+#include "http/header_list.h"
+#include "http/response_headers.h"
 
 #include "constants.h"
 #include "dynamic_table.h"
@@ -22,7 +22,7 @@
 #include "huffman.h"
 #include "stream.h"
 
-#include "../handling/handlers.h"
+#include "handling/handlers.h"
 
 /* string compare with length */
 int scomp(const char *a, const char *b, size_t len) {
