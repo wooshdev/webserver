@@ -58,6 +58,29 @@ int handle_setup(config_t config) {
 void handle_destroy() {
 }
 
+static int handle_write_length(http_response_headers_t *headers, size_t size) {
+	/* TODO: Ensure length_buffer is big enough for size.
+	 * unfortunately, I can't use snprintf because it isn't in POSIX '89/C89*/
+	char *length_buffer = calloc(128, sizeof(char));
+	int result = sprintf(length_buffer, "%zu", size);
+	if (result <= 0) {
+		printf("[Handlers] Failed to write length! Value=%zu\n", size);
+		free(length_buffer);
+		return 0;
+	} else {
+		char *lb_new = realloc(length_buffer, result * sizeof(char));
+		if (!lb_new) {
+			puts("[Handlers] Failed to reallocate length_buffer.");
+			free(length_buffer);
+			return 0;
+		} else {
+			int status = http_response_headers_add(headers, HTTP_RH_CONTENT_LENGTH, lb_new);
+			free(lb_new);
+			return status;
+		}
+	}
+}
+
 http_response_t *http_handle_request(http_header_list_t *request_headers, handler_callbacks_t *callbacks) {
 	http_response_t *response = malloc(sizeof(http_response_t));
 	response->is_dynamic = 1;
@@ -75,15 +98,12 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 		response->headers = http_create_response_headers(4);
 
 		size_t size = strlen(H2_BODY_method_not_supported);
-		char *length_buffer = calloc(128, sizeof(char));
-		sprintf(length_buffer, "%zu", size);
 		response->body_size = size;
 
 		http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
 		http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
-		http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
-		free(length_buffer);
 		http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
+		handle_write_length(response->headers, size);
 		
 		if (callbacks && callbacks->headers_ready) {
 			callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
@@ -153,19 +173,15 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			size = strlen(H2_BODY_not_found);
 			break;
 	}
+
+	handle_write_length(response->headers, size);
+	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
+	
 	if (callbacks && callbacks->headers_ready) {
 		callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
 	}
 	response->body_size = size;
-	
-	/* TODO: Ensure size is big enough */
-	char *length_buffer = calloc(128, sizeof(char));
-	sprintf(length_buffer, "%zu", size);
-	
-	http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
-	free(length_buffer);
-	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
-	
+
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
 }
