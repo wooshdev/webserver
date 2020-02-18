@@ -13,7 +13,8 @@ int GLOBAL_SETTING_read_timeout;
 char *GLOBAL_SETTING_host;
 char *GLOBAL_SETTING_origin;
 char *GLOBAL_SETTING_server_name; 
-char *GLOBAL_SETTING_HEADER_sts; 
+char *GLOBAL_SETTING_HEADER_sts;
+char *GLOBAL_SETTING_HEADER_tk;
 
 static void globset_set(char **dest, const char *value, char *initial) {
 	if (!value) {
@@ -34,6 +35,7 @@ void GLOBAL_SETTINGS_load(config_t config) {
 	globset_set(&GLOBAL_SETTING_host, config_get(config, "hostname"), NULL);
 	globset_set(&GLOBAL_SETTING_origin, config_get(config, "origin"), NULL);
 	globset_set(&GLOBAL_SETTING_HEADER_sts, config_get(config, "strict-transport-security"), NULL);
+	globset_set(&GLOBAL_SETTING_HEADER_tk, config_get(config, "header-tk"), NULL);
 	globset_set(&GLOBAL_SETTING_server_name, config_get(config, "server-name"), GLOBAL_SETTING_server_name_initial);
 }
 

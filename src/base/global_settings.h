@@ -32,6 +32,9 @@ extern char *GLOBAL_SETTING_host;
 /** The 'strict-transport-security' header (RFC 6797) */
 extern char *GLOBAL_SETTING_HEADER_sts;
 
+/** The 'strict-transport-security' header (https://w3c.github.io/dnt/drafts/tracking-dnt.html) */
+extern char *GLOBAL_SETTING_HEADER_tk;
+
 /** This is the value of the 'Server' header. */
 #define GLOBAL_SETTING_server_name_initial "wss"
 extern char *GLOBAL_SETTING_server_name;

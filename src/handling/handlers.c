@@ -192,6 +192,8 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 
 	if (GLOBAL_SETTING_HEADER_sts)
 		http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts);
+	if (GLOBAL_SETTING_HEADER_tk)
+		http_response_headers_add(response->headers, HTTP_RH_TK, GLOBAL_SETTING_HEADER_tk);
 	
 	if (callbacks && callbacks->headers_ready) {
 		callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
