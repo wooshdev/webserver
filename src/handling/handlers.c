@@ -169,11 +169,3 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
 }
-
-http_response_t handle_request(http_request_t request) {
-	http_response_t response = { 0 };
-	
-	/* MOVED TO http_handle_request! */
-	
-	return response;
-}
