@@ -167,10 +167,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
 		}
 
-		if (encoded_data == NULL) {
-			response->body = strdup(H2_BODY_compression);
-			size = strlen(H2_BODY_compression);
-		} else {
+		if (encoded_data != NULL) {
 			response->body = encoded_data->data;
 			size = encoded_data->size;
 			free(encoded_data);
