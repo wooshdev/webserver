@@ -29,6 +29,9 @@ extern char *GLOBAL_SETTING_origin;
 /** This is what the requests' 'Host' header should be. */
 extern char *GLOBAL_SETTING_host;
 
+/** The 'strict-transport-security' header (RFC 6797) */
+extern char *GLOBAL_SETTING_HEADER_sts;
+
 /** This is the value of the 'Server' header. */
 #define GLOBAL_SETTING_server_name_initial "wss"
 extern char *GLOBAL_SETTING_server_name;

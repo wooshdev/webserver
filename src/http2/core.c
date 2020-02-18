@@ -172,6 +172,11 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
+			case HTTP_RH_STRICT_TRANSPORT_SECURITY:
+				headers[pos] = 0x78; /* = 01111000 */
+				pos += 1;
+				write_str(headers, header->value, &pos);
+				break;
 			case HTTP_RH_STATUS_200:
 				headers[pos] = 0x88; /* = 10001000 */
 				pos += 1;

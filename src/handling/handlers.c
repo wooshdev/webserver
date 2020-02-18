@@ -107,6 +107,8 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 		http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
 		http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
 		http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
+		if (GLOBAL_SETTING_HEADER_sts)
+			http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts);
 		handle_write_length(response->headers, size);
 		
 		if (callbacks && callbacks->headers_ready) {
@@ -183,6 +185,9 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 
 	handle_write_length(response->headers, size);
 	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
+
+	if (GLOBAL_SETTING_HEADER_sts)
+		http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts);
 	
 	if (callbacks && callbacks->headers_ready) {
 		callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);

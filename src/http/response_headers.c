@@ -19,7 +19,8 @@ const char *http_rhnames[] = {
 	"Server: ",
 	"Tk: ",
 	"Vary: ",
-	"Content-Encoding: "
+	"Content-Encoding: ",
+	"Strict-Transport-Security: ",
 };
 
 http_response_headers_t *http_create_response_headers(size_t initial_size) {
