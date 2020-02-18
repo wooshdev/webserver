@@ -57,7 +57,7 @@ int handle_setup(config_t config) {
 void handle_destroy() {
 }
 
-http_response_t *http_handle_request(http_header_list_t *request_headers) {
+http_response_t *http_handle_request(http_header_list_t *request_headers, handler_callbacks_t *callbacks) {
 	http_response_t *response = malloc(sizeof(http_response_t));
 	response->is_dynamic = 1;
 	size_t size = 0;
@@ -83,6 +83,10 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 		http_response_headers_add(response->headers, HTTP_RH_CONTENT_LENGTH, length_buffer);
 		free(length_buffer);
 		http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
+		
+		if (callbacks && callbacks->headers_ready) {
+			callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
+		}
 
 		response->body = strdup(H2_BODY_method_not_supported);
 		return response;
@@ -134,6 +138,9 @@ http_response_t *http_handle_request(http_header_list_t *request_headers) {
 			response->body = strdup(H2_BODY_not_found);
 			size = strlen(H2_BODY_not_found);
 			break;
+	}
+	if (callbacks && callbacks->headers_ready) {
+		callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
 	}
 	response->body_size = size;
 	

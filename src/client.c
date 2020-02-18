@@ -31,7 +31,7 @@ void client_start(void *data) {
 			case TLS_AP_HTTP11: {
 				http_header_list_t *request = http1_parse(tls);
 				if (request) {
-					http_response_t *response = http_handle_request(request);
+					http_response_t *response = http_handle_request(request, NULL);
 					http1_write_response(tls, response);
 
 					if (response->is_dynamic) {

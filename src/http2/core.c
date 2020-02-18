@@ -130,9 +130,11 @@ static void write_str(char *data, const char *str, size_t *pos) {
 
 static const char *simple = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This is sent via HTTP/2!</h1></body>";
 
-static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_header_list, setentry_t *settings) {
-	http_response_t *response = http_handle_request(request_header_list);
-	
+static void h2_callback_headers_ready(http_response_headers_t *response_headers, size_t app_data_len, void **application_data) {
+
+	TLS tls = (TLS) application_data[0];
+	frame_t *frame = (frame_t *)application_data[1];
+
 	/* headers MUST not get strings longer than 256 octets in size. */
 	char *length_buffer = calloc(256, sizeof(char));
 	sprintf(length_buffer, "%zu", strlen(simple));
@@ -143,9 +145,9 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 	/*
 	printf(" Header count: %zu\n", list->count);
 	*/
-	for (i = 0; i < response->headers->count; i++) {
+	for (i = 0; i < response_headers->count; i++) {
 		/*headers[pos] &= (1 << i);*/
-		header = response->headers->headers[i];
+		header = response_headers->headers[i];
 		switch (header->name) {
 			case HTTP_RH_CONTENT_LENGTH:
 				headers[pos] = 0x5C; /* = 01011100 */
@@ -184,8 +186,9 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 				break;
 		}
 	}
-	/* Add EOS padding */
-/* 	size_t bpleft = bp % 8;
+	
+		/* Add EOS padding */
+	/* 	size_t bpleft = bp % 8;
  	if (bpleft != 0) {
  		for (i = 0; i < bpleft; i++) {
  			headers[bp/8] &= (1 << i);
@@ -211,7 +214,24 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 	/*printf(" > sending HEADERS frame, len=%zu\n", pos);*/
 	send_frame(tls, pos, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
-	
+}
+
+static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_header_list, setentry_t *settings) {
+	handler_callbacks_t *callback_info = malloc(sizeof(handler_callbacks_t));
+	if (!callback_info) {
+		fprintf(stderr, "h2_handle: memory allocation error!");
+		return;
+	}
+	callback_info->headers_ready = h2_callback_headers_ready;
+	callback_info->application_data_length = 2;
+	callback_info->application_data = calloc(callback_info->application_data_length, sizeof(void *));
+	callback_info->application_data[0] = tls;
+	callback_info->application_data[1] = frame;
+
+	http_response_t *response = http_handle_request(request_header_list, callback_info);
+	free(callback_info->application_data);
+	free(callback_info);
+
 	/*printf(" > sending DATA frame, len=%zu\n", response->body_size);*/
 	send_frame(tls, response->body_size, FRAME_DATA, FLAG_END_STREAM, frame->r_s_id, response->body);
 	
