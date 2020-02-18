@@ -96,9 +96,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	/** Encoding **/
 	compression_t compressor = COMPRESSION_TYPE_NONE;
 	const char *accept_encoding_value = http_header_list_gets(request_headers, "accept-encoding");
-	if (!accept_encoding_value) {
-		puts("[Handler] Warning: No encoding acceptable since it is NULL.");
-	} else {
+	if (accept_encoding_value) {
 		compressor = http_parse_accept_encoding(accept_encoding_value);
 	}
 	response->headers = http_create_response_headers(4);
@@ -126,8 +124,13 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 				response->body = data->data;
 				size = data->size;
 				free(data);
+			} else if (compressor == COMPRESSION_TYPE_BROTLI) {
+				encoded_data_t *data = encode_brotli(H2_BODY_compression, strlen(H2_BODY_compression));
+				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
+				response->body = data->data;
+				size = data->size;
+				free(data);
 			} else {
-				puts("Warning: GZIP not used!");
 				response->body = strdup(H2_BODY_compression);
 				size = strlen(H2_BODY_compression);
 			}

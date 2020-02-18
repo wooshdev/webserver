@@ -6,7 +6,8 @@
 OUTPUTFILE = bin/server
 
 CFLAGS = -O3 -Wall -g -Isrc
-LDFLAGS = -pthread `pkg-config --static --libs openssl zlib`
+LDBROTLI = `pkg-config --static --libs libbrotlicommon libbrotlienc`
+LDFLAGS = -pthread `pkg-config --static --libs openssl zlib libbrotlicommon libbrotlienc`
 CC = c89
 
 # unfortunately, because of the 'bin/build.txt' hack we can't use the '$^' macro, because bin/build.txt isn't accepted by ld, maybe a FIXME?
@@ -39,7 +40,7 @@ GENERALBINARIES =	bin/base/global_settings.so \
 SUBBINARIES = $(GENERALBINARIES) $(HTTPBINARIES) $(HTTP2BINARIES)
 
 $(OUTPUTFILE): src/main.c bin/build.txt $(SUBBINARIES)
-	$(CC) $(CFLAGS) -o $@ $< $(SUBBINARIES) $(LDFLAGS)
+	$(CC) $(CFLAGS) -DENCODERS_ENABLE_BROTLI -o $@ $< $(SUBBINARIES) $(LDFLAGS)
 bin/build.txt: # a hack to create the bin folder only once
 	mkdir -p bin/base
 	mkdir -p bin/config
@@ -68,7 +69,7 @@ bin/threads.so: src/utils/threads.c src/utils/threads.h
 bin/server.so: src/server.c src/server.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/utils/encoders.so: src/utils/encoders.c src/utils/encoders.h
-	$(CC) -o $@ -c $(CFLAGS) $<
+	$(CC) -o $@ -c $(CFLAGS) $< $(LDBROTLI) -DENCODERS_ENABLE_BROTLI
 bin/utils/fileutil.so: src/utils/fileutil.c src/utils/fileutil.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/utils/io.so: src/utils/io.c src/utils/io.h src/secure/tlsutil.h

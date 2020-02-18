@@ -14,11 +14,16 @@
 #include <string.h>
 
 /** Global Variables **/
-compression_t hp_compressors[] = { COMPRESSION_TYPE_GZIP, COMPRESSION_TYPE_ANY, COMPRESSION_TYPE_NONE };
+#define COMPRESSORS_SIZE 4
+compression_t hp_compressors[] = { COMPRESSION_TYPE_BROTLI, COMPRESSION_TYPE_GZIP, COMPRESSION_TYPE_ANY, COMPRESSION_TYPE_NONE };
 
 /** Non-Global Variables **/
-static const char *cchp_compressors[] = { "gzip", "*", "identity" };
+static const char *cchp_compressors[] = { "br", "gzip", "*", "identity" };
 
+/* TODO:
+ *   Use the variables in encoders.h (ENCODER_STATUS_gzip and ENCODER_STATUS_brotli)
+ *   AND the configuration to determine the availability and preference of the encoders.
+ */
 
 /** Functions **/
 compression_t http_parse_accept_encoding(const char *input) {
@@ -29,8 +34,9 @@ compression_t http_parse_accept_encoding(const char *input) {
 	}
 
 	double best_quality = 0;
-	compression_t best_compressor = COMPRESSION_TYPE_NONE;
-
+	compression_t best_compressors[COMPRESSORS_SIZE];
+	size_t best_compressor_length = 0;
+	
 	char *srctext = strdup(input);
 	char *text = srctext;
 	char **ptext = &text;
@@ -84,11 +90,14 @@ compression_t http_parse_accept_encoding(const char *input) {
 
 			/* is the value in the cchp_compressors list? */
 			size_t i;
-			for (i = 0; i < sizeof(cchp_compressors) / sizeof(cchp_compressors[0]); i++) {
+			for (i = 0; i < COMPRESSORS_SIZE; i++) {
 				if (strcasecmp(name, cchp_compressors[i]) == 0) {
-					if ((best_compressor == COMPRESSION_TYPE_NONE && best_quality <= quality && quality != 0) || best_quality < quality) {
-						best_compressor = hp_compressors[i];
+					if (best_compressor_length == 0 || best_quality < quality) {
+						best_compressor_length = 1;
+						best_compressors[0] = hp_compressors[i];
 						best_quality = quality;
+					} else if (best_quality == quality) {
+						best_compressors[best_compressor_length++] = hp_compressors[i];
 					}
 				}
 			}
@@ -98,7 +107,20 @@ compression_t http_parse_accept_encoding(const char *input) {
 	}
 
 	free(srctext);
-	return best_compressor;
+	
+	/* if the client has more than 1 favorite, the server may decide. */
+	if (best_compressor_length > 0) {
+		size_t i, j;
+		for (i = 0; i < COMPRESSORS_SIZE; i++) {
+			for (j = 0; j < best_compressor_length; j++) {
+				if (hp_compressors[i] == best_compressors[j]) {
+					return hp_compressors[i];
+				}
+			}
+		}
+	}
+	
+	return best_compressors[0];
 error:
 	/*puts("[DEBUG] Parser error on quality parser");*/
 error_wl:
