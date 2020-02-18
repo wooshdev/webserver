@@ -167,6 +167,11 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
 				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
+			case HTTP_RH_DATE:
+				headers[pos] = 0x61; /* = 01100001 */
+				pos += 1;
+				write_str(headers, header->value, &pos);
+				break;
 			case HTTP_RH_SERVER:
 				headers[pos] = 0x76; /* = 01110110 */
 				pos += 1;

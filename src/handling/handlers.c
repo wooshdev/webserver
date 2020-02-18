@@ -9,10 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef BENCHMARK
 #include <time.h>
-#endif
 
 #include "base/global_settings.h"
 
@@ -85,6 +82,15 @@ static int handle_write_length(http_response_headers_t *headers, size_t size) {
 	}
 }
 
+static void header_write_date(http_response_headers_t *headers) {
+	char *value = calloc(128, sizeof(char));
+	time_t the_time = time(NULL);
+	size_t len = strftime(value, 128, "%a, %d %h %Y %T %z", localtime(&the_time));
+	value = realloc(value, len + 1);
+	http_response_headers_add(headers, HTTP_RH_DATE, value);
+	free(value);
+}
+
 http_response_t *http_handle_request(http_header_list_t *request_headers, handler_callbacks_t *callbacks) {
 	http_response_t *response = malloc(sizeof(http_response_t));
 	response->is_dynamic = 1;
@@ -153,6 +159,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			size = strlen(H2_BODY_not_found);
 			break;
 	}
+	header_write_date(response->headers);
 
 #ifdef BENCHMARK
 	clock_t start_time_compression = clock();
