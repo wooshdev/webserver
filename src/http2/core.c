@@ -33,8 +33,6 @@ int scomp(const char *a, const char *b, size_t len) {
 	return 1;
 }
 
-static const char *settings_names[] = { NULL, "SETTINGS_HEADER_TABLE_SIZE", "SETTINGS_ENABLE_PUSH", "SETTINGS_MAX_CONCURRENT_STREAMS", "SETTINGS_INITIAL_WINDOW_SIZE", "SETTINGS_MAX_FRAME_SIZE", "SETTINGS_MAX_HEADER_LIST_SIZE" };
-
 static H2_ERROR handle_settings(frame_t *frame, setentry_t *settings) {
 	setentry_t ent;
 	/*
