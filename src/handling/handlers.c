@@ -10,11 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../utils/util.h"
-#include "../http/header_parser.h"
-#include "../utils/encoders.h"
-
 #include "base/global_settings.h"
+
+#include "http/header_parser.h"
+#include "utils/encoders.h"
+#include "utils/util.h"
+
 
 /*#include "fileserver.c"*/
 

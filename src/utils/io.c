@@ -6,8 +6,8 @@
  */
 #include "io.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int io_read_until(TLS source, char *dest, char until, size_t max) {
 	char *buffer = malloc(1);

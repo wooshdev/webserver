@@ -6,7 +6,7 @@
 #define FILE_UTIL_H
 
 #include <linux/limits.h>
-#include "../configuration/config.h"
+#include "configuration/config.h"
 
 typedef enum protocol_t {
 	PROTOCOL_NULL = -1,

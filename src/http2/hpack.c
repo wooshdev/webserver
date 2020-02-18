@@ -4,12 +4,13 @@
  * 
  * This file contains untility functions for the decompression & parsing of a HPACK blob.
  */
+#include "hpack.h"
+
 #include "constants.h"
 #include "dynamic_table.h"
-#include "hpack.h"
+#include "http/header_list.h"
 #include "huffman.h"
-#include "../http/header_list.h"
-#include "../utils/util.h"
+#include "utils/util.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -6,7 +6,8 @@
 #define UTILS_IO_H
 
 #include <stddef.h>
-#include "../secure/tlsutil.h"
+
+#include "secure/tlsutil.h"
 /**
  * Description:
  *   This function will read from the source until a specific character 

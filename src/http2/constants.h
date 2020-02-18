@@ -7,6 +7,7 @@
  */
 #ifndef HTTP2_CONSTANTS_H
 #define HTTP2_CONSTANTS_H
+
 #include <stddef.h>	/* for NULL */
 #include <stdint.h> /* for uint32_t */
 

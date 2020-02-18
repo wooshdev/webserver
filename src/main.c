@@ -2,29 +2,30 @@
  * Copyright (C) 2019-2020 Tristan
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  */
-#include "client.h"
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
-#include <netinet/in.h>
 
-#include "server.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include "base/global_settings.h"
+#include "client.h"
 #include "configuration/config.h"
-#include "utils/util.h"
-#include "utils/fileutil.h"
-#include "secure/tlsutil.h"
-#include "http/parser.h"
-#include "utils/io.h"
 #include "handling/handlers.h"
 #include "http/http1.h"
+#include "http/parser.h"
 #include "http2/core.h"
-#include "base/global_settings.h"
+#include "secure/tlsutil.h"
+#include "server.h"
+#include "utils/fileutil.h"
+#include "utils/io.h"
 #include "utils/threads.h"
+#include "utils/util.h"
 
 /* This array is defined by src/http/common.c */
 extern const char *http_common_log_status_names[];

@@ -5,8 +5,10 @@
  * This file contains function definitions for reading a HTTP/2 frame.
  */
 #include "frame.h"
+
 #include <stdlib.h>
 #include <string.h>
+
 #include "constants.h"
 
 frame_t *readfr(TLS tls, uint32_t max_size, H2_ERROR *error) {

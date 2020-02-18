@@ -4,16 +4,17 @@
  */
 #include "client.h"
 
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <arpa/inet.h>
 #include <netinet/tcp.h>
 
-#include "secure/tlsutil.h"
 #include "handling/handlers.h"
 #include "http/http1.h"
 #include "http2/core.h"
+#include "secure/tlsutil.h"
 
 void client_start(void *data) {
 	int client = *((int *) data);

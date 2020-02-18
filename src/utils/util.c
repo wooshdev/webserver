@@ -3,10 +3,11 @@
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  */
 #include "util.h"
+
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <ctype.h>
 
 int strswitch(const char *in, const char **list, size_t size, int case_flag) {
 	if (!in)

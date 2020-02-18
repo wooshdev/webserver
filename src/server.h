@@ -5,6 +5,7 @@
 
 #ifndef SERVER_H
 #define SERVER_H
+
 #include <stdint.h>
 
 typedef int socket_t;
