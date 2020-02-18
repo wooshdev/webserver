@@ -18,6 +18,8 @@
 #define FRAME_GOAWAY        0x7
 #define FRAME_WINDOW_UPDATE 0x8
 #define FRAME_CONTINUATION  0x9
+#define FRAME_ALTSVC        0xa
+#define FRAME_ORIGIN        0xc
 
 /** For the 'TLS' typedef. */
 #include "../secure/tlsutil.h"

@@ -23,6 +23,9 @@ void GLOBAL_SETTINGS_destroy();
   * This isn't really a setting as much as it is a global variable. */
 extern int GLOBAL_SETTINGS_cancel_requested;
 
+/** See 'origin' in the config.ini, or (https://www.rfc-editor.org/rfc/rfc6454) */
+extern char *GLOBAL_SETTING_origin;
+
 /** This is what the requests' 'Host' header should be. */
 extern char *GLOBAL_SETTING_host;
 

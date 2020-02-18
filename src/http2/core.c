@@ -13,6 +13,7 @@
 #include <time.h>
 #endif
 
+#include "base/global_settings.h"
 #include "http/parser.h"
 #include "utils/io.h"
 #include "utils/util.h"
@@ -282,6 +283,17 @@ void http2_handle(TLS tls) {
 	/* send WINDOW_UPDATE frame */{
 		uint32_t size = 0x7FFF0000;
 		send_frame(tls, 4, FRAME_WINDOW_UPDATE, 0x0, 0x0, (char *)&size);
+	}
+
+	if (GLOBAL_SETTING_origin) {
+		size_t len = strlen(GLOBAL_SETTING_origin);
+		char *origin_frame = malloc(2 + len);
+		
+		origin_frame[0] = (len >> 8) & 0xFF;
+		origin_frame[1] = len & 0xFF;
+		memcpy(origin_frame, GLOBAL_SETTING_origin, len);
+		send_frame(tls, 2 + len, FRAME_ORIGIN, 0x0, 0x0, origin_frame);
+		free(origin_frame);
 	}
 	
 	if (frame) {
