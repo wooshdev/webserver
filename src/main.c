@@ -22,6 +22,7 @@
 #include "http2/core.h"
 #include "secure/tlsutil.h"
 #include "server.h"
+#include "utils/encoders.h"
 #include "utils/fileutil.h"
 #include "utils/io.h"
 #include "utils/threads.h"
@@ -76,6 +77,11 @@ int main(int argc, char **argv) {
   
 	if (!http2_setup()) {
 		fputs("Failed to setup HTTP/2!\n", stderr);
+		return EXIT_FAILURE;
+	}
+
+	if (!encoder_setup()) {
+		fputs("Failed to setup encoding algorithms!\n", stderr);
 		return EXIT_FAILURE;
 	}
   
@@ -182,6 +188,7 @@ int main(int argc, char **argv) {
 	close(sock);
 	tls_destroy();
 	GLOBAL_SETTINGS_destroy();
+	encoder_destroy();
 	
 	return EXIT_SUCCESS;
 }
