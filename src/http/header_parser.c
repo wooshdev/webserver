@@ -35,6 +35,7 @@ compression_t http_parse_accept_encoding(const char *input) {
 
 	double best_quality = 0;
 	compression_t best_compressors[COMPRESSORS_SIZE];
+	memset(&best_compressors, 0, sizeof(best_compressors[0]) * COMPRESSORS_SIZE);
 	size_t best_compressor_length = 0;
 	
 	char *srctext = strdup(input);
@@ -93,6 +94,7 @@ compression_t http_parse_accept_encoding(const char *input) {
 			for (i = 0; i < COMPRESSORS_SIZE; i++) {
 				if (strcasecmp(name, cchp_compressors[i]) == 0) {
 					if (best_compressor_length == 0 || best_quality < quality) {
+						memset(&best_compressors, 0, sizeof(best_compressors[0]) * COMPRESSORS_SIZE);
 						best_compressor_length = 1;
 						best_compressors[0] = hp_compressors[i];
 						best_quality = quality;
@@ -109,17 +111,21 @@ compression_t http_parse_accept_encoding(const char *input) {
 	free(srctext);
 	
 	/* if the client has more than 1 favorite, the server may decide. */
-	if (best_compressor_length > 0) {
+	if (best_compressor_length > 1) {
 		size_t i, j;
 		for (i = 0; i < COMPRESSORS_SIZE; i++) {
 			for (j = 0; j < best_compressor_length; j++) {
+				printf("hp=%u cchp=%s\n", hp_compressors[i], cchp_compressors[i]);
 				if (hp_compressors[i] == best_compressors[j]) {
 					return hp_compressors[i];
 				}
 			}
 		}
 	}
-	
+
+	if (best_compressor_length == 0)
+		return COMPRESSION_TYPE_NONE;
+
 	return best_compressors[0];
 error:
 	/*puts("[DEBUG] Parser error on quality parser");*/

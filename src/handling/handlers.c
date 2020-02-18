@@ -119,6 +119,7 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	if (accept_encoding_value) {
 		compressor = http_parse_accept_encoding(accept_encoding_value);
 	}
+	printf("accept-encoding=%s compressor=%u\n", accept_encoding_value, compressor);
 	response->headers = http_create_response_headers(4);
 	
 	const char *possible_paths[] = { "/", "/favicon.ico", "/encoding" };
@@ -151,16 +152,18 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 
 	if (size > 0) {
 		encoded_data_t *encoded_data = NULL;
-		if (compressor == COMPRESSION_TYPE_GZIP)
+		if (compressor == COMPRESSION_TYPE_GZIP) {
 			encoded_data = encode_gzip(response->body, size);
-		else if (compressor == COMPRESSION_TYPE_BROTLI)
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "gzip");
+		} else if (compressor == COMPRESSION_TYPE_BROTLI) {
 			encoded_data = encode_brotli(response->body, size);
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
+		}
 
 		if (encoded_data == NULL) {
 			response->body = strdup(H2_BODY_compression);
 			size = strlen(H2_BODY_compression);
 		} else {
-			http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
 			response->body = encoded_data->data;
 			size = encoded_data->size;
 			free(encoded_data);
