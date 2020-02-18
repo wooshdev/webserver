@@ -11,7 +11,9 @@
 #include <stddef.h>
 #include "core.h"
 #include "frame.h"
-#include "../http/header_list.h"
+
+#include "dynamic_table.h"
+#include "http/header_list.h"
 
 /**
  * Description:
