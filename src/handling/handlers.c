@@ -122,7 +122,8 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 	response->headers = http_create_response_headers(4);
 	
 	const char *possible_paths[] = { "/", "/favicon.ico", "/encoding" };
-	
+
+
 	switch (strswitch(path, possible_paths, sizeof(possible_paths) / sizeof(possible_paths[0]), CASEFLAG_DONT_IGNORE)) {
 		case 0:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
@@ -137,34 +138,8 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 		case 2:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL);
 			http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, "text/html; charset=UTF-8");
-			
-			if (compressor == COMPRESSION_TYPE_GZIP) {
-				encoded_data_t *data = encode_gzip(H2_BODY_compression, strlen(H2_BODY_compression));
-
-				/* compression failed: skip compression */
-				if (data == NULL)
-					goto nocompression;
-
-				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "gzip");
-				response->body = data->data;
-				size = data->size;
-				free(data);
-			} else if (compressor == COMPRESSION_TYPE_BROTLI) {
-				encoded_data_t *data = encode_brotli(H2_BODY_compression, strlen(H2_BODY_compression));
-
-				/* compression failed: skip compression */
-				if (data == NULL)
-					goto nocompression;
-
-				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
-				response->body = data->data;
-				size = data->size;
-				free(data);
-			} else {
-				nocompression:
-				response->body = strdup(H2_BODY_compression);
-				size = strlen(H2_BODY_compression);
-			}
+			response->body = strdup(H2_BODY_compression);
+			size = strlen(H2_BODY_compression);
 			break;
 		default:
 			http_response_headers_add(response->headers, HTTP_RH_STATUS_404, NULL);
@@ -174,14 +149,35 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			break;
 	}
 
+	if (size > 0) {
+		encoded_data_t *encoded_data = NULL;
+		if (compressor == COMPRESSION_TYPE_GZIP)
+			encoded_data = encode_gzip(response->body, size);
+		else if (compressor == COMPRESSION_TYPE_BROTLI)
+			encoded_data = encode_brotli(response->body, size);
+
+		if (encoded_data == NULL) {
+			response->body = strdup(H2_BODY_compression);
+			size = strlen(H2_BODY_compression);
+		} else {
+			http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
+			response->body = encoded_data->data;
+			size = encoded_data->size;
+			free(encoded_data);
+		}
+	} else {
+		response->body = NULL;
+		response->body_size = 0;
+	}
+
 	handle_write_length(response->headers, size);
 	http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name);
 	
 	if (callbacks && callbacks->headers_ready) {
 		callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
 	}
-	response->body_size = size;
 
+	response->body_size = size;
 	response->status = HTTP_LOG_STATUS_NO_ERROR;
 	return response;
 }
