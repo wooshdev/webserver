@@ -28,8 +28,8 @@
 /** Section: Variables */
 int ENCODER_STATUS_gzip,
 	ENCODER_STATUS_brotli;
+int initialized = 0;
 #ifdef ENCODERS_ENABLE_BROTLI
-	int initialized = 0;
 	BrotliEncoderState *brotli_state;
 	int brotli_quality, brotli_window;
 	BrotliEncoderMode brotli_mode;

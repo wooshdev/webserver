@@ -120,17 +120,28 @@ http_response_t *http_handle_request(http_header_list_t *request_headers, handle
 			
 			if (compressor == COMPRESSION_TYPE_GZIP) {
 				encoded_data_t *data = encode_gzip(H2_BODY_compression, strlen(H2_BODY_compression));
+
+				/* compression failed: skip compression */
+				if (data == NULL)
+					goto nocompression;
+
 				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "gzip");
 				response->body = data->data;
 				size = data->size;
 				free(data);
 			} else if (compressor == COMPRESSION_TYPE_BROTLI) {
 				encoded_data_t *data = encode_brotli(H2_BODY_compression, strlen(H2_BODY_compression));
+
+				/* compression failed: skip compression */
+				if (data == NULL)
+					goto nocompression;
+
 				http_response_headers_add(response->headers, HTTP_RH_CONTENT_ENCODING, "br");
 				response->body = data->data;
 				size = data->size;
 				free(data);
 			} else {
+				nocompression:
 				response->body = strdup(H2_BODY_compression);
 				size = strlen(H2_BODY_compression);
 			}
