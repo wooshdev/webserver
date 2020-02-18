@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/tcp.h>
 
 #include "handling/handlers.h"
@@ -23,6 +24,19 @@ void client_start(void *data) {
 	/* enable TCP_NODELAY */
 	int one = 1;
 	setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (char *) &one, sizeof(int));
+
+	int flags = fcntl(client, F_GETFL);
+	if (flags == -1) {
+		perror("Failed to get client flags");
+		return;
+	}
+
+	/* Make client non-blocking */
+	int status = fcntl(client, F_SETFL, flags | O_NONBLOCK);
+	if (status == -1) {
+		perror("Failed to set client flags");
+		return;
+	}
 
 	TLS tls = tls_setup_client(client);
 
@@ -50,7 +64,10 @@ void client_start(void *data) {
 				fputs("Invalid AP!\n", stderr);
 				goto clean;
 		}
+	} else {
+		puts("failed to setup TLS.");
 	}
 	clean:
+	puts("closed connection.");
 	close(client);
 }

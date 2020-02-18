@@ -8,6 +8,7 @@
 #include <string.h>
 
 int GLOBAL_SETTINGS_cancel_requested;
+int GLOBAL_SETTING_read_timeout;
 
 char *GLOBAL_SETTING_host;
 char *GLOBAL_SETTING_server_name; 
@@ -27,6 +28,7 @@ static void globset_set(char **dest, const char *value, char *initial) {
 
 void GLOBAL_SETTINGS_load(config_t config) {
 	GLOBAL_SETTINGS_cancel_requested = 0;
+	GLOBAL_SETTING_read_timeout = 200;
 	globset_set(&GLOBAL_SETTING_host, config_get(config, "hostname"), NULL);
 	globset_set(&GLOBAL_SETTING_server_name, config_get(config, "server-name"), GLOBAL_SETTING_server_name_initial);
 }

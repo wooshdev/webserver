@@ -7,6 +7,8 @@
 
 #include "configuration/config.h"
 
+extern int GLOBAL_SETTING_read_timeout;
+
 /**
  * About this file:
  * This file contains variables that may be/are used globally throughout the server.

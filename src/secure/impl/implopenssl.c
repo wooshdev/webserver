@@ -6,7 +6,10 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <poll.h>
 #include <string.h>
+
+#include "base/global_settings.h"
 
 BIO *bio_err = NULL;
 
@@ -217,20 +220,69 @@ void tls_destroy(void) {
 	EVP_cleanup();
 }
 
+static int wait_for_read(int socket) {
+	struct pollfd poller;
+	poller.fd = socket;
+	poller.events = POLLIN;
+	poller.revents = 0;
+	int result;
+	while ((result = poll(&poller, 1, GLOBAL_SETTING_read_timeout)) == 0
+		&& !GLOBAL_SETTINGS_cancel_requested) {
+		/* waiting until poll has finished, indefinitely (until GLOBAL_SETTINGS_cancel_requested is > 0). */
+	}
+	return result > 0;
+}
+
+static const char *get_ssl_error_name(int error) {
+	switch (error) {
+		case SSL_ERROR_NONE: return "SSL_ERROR_NONE";
+		case SSL_ERROR_ZERO_RETURN: return "SSL_ERROR_ZERO_RETURN";
+		case SSL_ERROR_WANT_READ: return "SSL_ERROR_WANT_READ,SSL_ERROR_WANT_WRITE";
+		case SSL_ERROR_WANT_CONNECT: return "SSL_ERROR_WANT_CONNECT,SSL_ERROR_WANT_ACCEPT";
+		case SSL_ERROR_WANT_X509_LOOKUP: return "SSL_ERROR_WANT_X509_LOOKUP";
+		case SSL_ERROR_WANT_ASYNC: return "SSL_ERROR_WANT_ASYNC";
+		case SSL_ERROR_WANT_ASYNC_JOB: return "SSL_ERROR_WANT_ASYNC_JOB";
+		case SSL_ERROR_SYSCALL: return "SSL_ERROR_SYSCALL";
+		case SSL_ERROR_SSL: return "SSL_ERROR_SSL";
+		default: return "UNKNOWN TYPE?";
+	}
+}
+
 void *tls_setup_client(int client) {
+	if (!wait_for_read(client))
+		return NULL;
+	
 	SSL *ssl = SSL_new(ctx);
+
 	if (!ssl) {
 		puts("[OpenSSL] (Client) Failed to create SSL object!");
 		return NULL;
 	}
-	SSL_set_fd(ssl, client);
-
-	int ret = SSL_accept(ssl);
-	if (ret <= 0) {
+	if (!SSL_set_fd(ssl, client)) {
 		ERR_print_errors_fp(stderr);
-		/*printf("%i\n", SSL_get_error(ssl, ret));*/
+		puts("[OpenSSL] (Client) Failed to set file descriptor!");
 		tls_destroy_client(ssl);
 		return NULL;
+	}
+
+	size_t retries = 0;
+	while (1) {
+		retries++;
+		int ret = SSL_accept(ssl);
+		if (ret <= 0) {
+			int error_code = SSL_get_error(ssl, ret);
+			if (error_code == SSL_ERROR_WANT_READ) {
+				if (wait_for_read(client))
+					continue;
+				else
+					goto error_end;
+			}
+			ERR_print_errors_fp(stderr);
+			printf("(OpenSSL) Accept error: %s or %i\n", get_ssl_error_name(error_code), error_code);
+			error_end:
+			tls_destroy_client(ssl);
+			return NULL;
+		} else break;
 	}
 	
 	return ssl;
@@ -242,7 +294,19 @@ void tls_destroy_client(void *ssl) {
 }
 
 int tls_read_client(void *pssl, char *result, size_t length) {
-	return SSL_read((SSL *) pssl, result, length);
+	int resval;
+	while ((resval = SSL_read((SSL *) pssl, result, length)) <= 0) {
+		int error = SSL_get_error((const SSL *)pssl, resval);
+		if (error == SSL_ERROR_WANT_READ) {
+			if (!wait_for_read(SSL_get_rfd((const SSL *)pssl))) {
+				printf("tls_read_client: Failed to poll()!\n");
+				return 0;
+			} else continue;
+		}
+		printf("tls_read_client error=%s\n", get_ssl_error_name(error));
+		return 0;
+	}
+	return resval;
 }
 
 int tls_read_client_complete(void *pssl, char *result, size_t length) {
@@ -251,26 +315,24 @@ int tls_read_client_complete(void *pssl, char *result, size_t length) {
 	
 	do {
 		read = SSL_read((SSL *) pssl, result + bytes_read, length - bytes_read);
-		read += bytes_read;
-		
-		if (!read)
+
+		if (read <= 0) {
+			int error = SSL_get_error((const SSL *)pssl, read);
+			
+			if (error == SSL_ERROR_WANT_READ) {
+				if (!wait_for_read(SSL_get_rfd((const SSL *)pssl))) {
+					printf("tls_read_client_complete: Failed to poll()!\n");
+					return 0;
+				} else continue;
+			}
+			
+			printf("tls_read_client_complete error=%s\n", get_ssl_error_name(error));
 			return 0;
+		}
+		read += bytes_read;
 	} while (read != length);
 	
 	return 1;
-}
-
-const char *_get_code(SSL *ssl, int i) {
-	switch (SSL_get_error(ssl, i)) {
-		case SSL_ERROR_NONE: return "SSL_ERROR_NONE";
-		case SSL_ERROR_ZERO_RETURN: return "SSL_ERROR_ZERO_RETURN";
-		case SSL_ERROR_WANT_READ: return "SSL_ERROR_WANT_READ/SSL_ERROR_WANT_WRITE";
-		case SSL_ERROR_WANT_CONNECT: return "SSL_ERROR_WANT_CONNECT/SSL_ERROR_WANT_ACCEPT";
-		case SSL_ERROR_WANT_X509_LOOKUP: return "SSL_ERROR_WANT_X509_LOOKUP";
-		case SSL_ERROR_SYSCALL: return "SSL_ERROR_SYSCALL";
-		case SSL_ERROR_SSL: return "SSL_ERROR_SSL";
-		default: return "?(default)";
-	}
 }
 
 int tls_write_client(void *pssl, const char *data, size_t length) {
@@ -278,7 +340,7 @@ int tls_write_client(void *pssl, const char *data, size_t length) {
 	if (i > 0)
 		return 1;
 	
-	printf("[OpenSSL] Failed to write data. Code=%s ssl=%p data=%p len=%zi\n", _get_code((SSL *) pssl, i), pssl, data, length);
+	printf("[OpenSSL] Failed to write data. Code=%s ssl=%p data=%p len=%zi\n", get_ssl_error_name(SSL_get_error((const SSL *)pssl, i)), pssl, data, length);
 	ERR_print_errors_fp(stderr);
 	return 0;
 }

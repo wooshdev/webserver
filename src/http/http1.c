@@ -71,7 +71,6 @@ http_header_list_t *http1_parse(TLS tls) {
 	if (!method || !path || !version)
 		goto clean;
 	
-	
 	/* parse method */
 	if (!method || !http_parse_method(tls, method, HTTP1_LONGEST_METHOD)) {
 		http_handle_error_gracefully(tls, HTTP_ERROR_UNSUPPORTED_METHOD, method, 0);
