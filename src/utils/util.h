@@ -64,6 +64,29 @@
  */
 int strswitch(const char *in, const char **list, size_t size, int case_flag);
 
+/**
+ * Description:
+ *   This function check is the second string is the first part of the first string.
+ *
+ * Parameter:
+ *   const char *
+ *     The string to check.
+ *   const char *
+ *     The string to check with. This should be the string that is the first part of 
+ *     the first string, or not.
+ *
+ * Return Value:
+ *   (boolean) 1 means it does start with the string, 0 if it doesn't.
+ *
+ * Examples:
+ *   strstartsw("hello", "h") => 1				(explanation: yes, "h" is the first part of "hello")
+ *   strstartsw("hello", "hello, goodbye") => 0	(explanation: no, "hello, goodbye" is not the first part, of "hello". You should switch the parameters around.)
+ *   strstartsw("hello", "HELLO") => 0			(explanation: this string function is case-sensitive)
+ *   strstartsw("hello, "") => 1					(explanation: the second parameter can be empty.)
+ *   strstartsw("hello", "hello") => 1			(explanation: this function can be used as strcmp!)
+ *   
+ */
+int strstartsw(const char *, const char *);
 
 /**
  * Copied from: https://stackoverflow.com/questions/252782/strdup-what-does-it-do-in-c#252802

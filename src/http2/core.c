@@ -190,15 +190,33 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
 				headers[pos] = 0x89; /* = 10001001 */
 				pos += 1;
 				break;
+			case HTTP_RH_STATUS_400:
+				headers[pos] = 0x8C; /* = 10001100 */
+				pos += 1;
+				break;
 			case HTTP_RH_STATUS_404:
 				headers[pos] = 0x8D; /* = 10001101 */
 				pos += 1;
+				break;
+			case HTTP_RH_STATUS_500:
+				headers[pos] = 0x8E; /* = 10001110 */
+				pos += 1;
+				break;
+			case HTTP_RH_STATUS_503:
+				headers[pos] = 0x48; /* = 01001000 */
+				pos += 1;
+				write_str(headers, "503", &pos);
 				break;
 			case HTTP_RH_TK:
 				/* TODO: use dynamic table contents if it already is in table. */
 				headers[pos] = 0x40; /* = 01000000 */
 				pos += 1;
 				write_str(headers, "tk", &pos);
+				write_str(headers, header->value, &pos);
+				break;
+			case HTTP_RH_LAST_MODIFIED:
+				headers[pos] = 0x6C; /* = 01101100 */
+				pos += 1;
 				write_str(headers, header->value, &pos);
 				break;
 			default:

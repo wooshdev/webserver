@@ -43,6 +43,9 @@ typedef struct http_handler_t {
 	char *name;
 	char *root;
 	http_handler_func function;
+	size_t overwrite_header_count;
+	char **overwrite_headers_names;
+	char **overwrite_headers_values;
 	/* user data */
 	void *data;
 } http_handler_t;

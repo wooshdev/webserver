@@ -39,6 +39,12 @@ int strswitch(const char *in, const char **list, size_t size, int case_flag) {
 	return -1;
 }
 
+int strstartsw(const char *a, const char *b) {
+	size_t lena = strlen(a),
+		   lenb = strlen(b);
+	return lena < lenb ? 0 : memcmp(a, b, lenb) == 0;
+}
+
 char *strdup(const char *src) {
 	size_t length = strlen(src);
 	char *copy = malloc((length+1) * sizeof(char));

@@ -37,6 +37,7 @@ GENERALBINARIES =	bin/base/global_settings.so \
 					bin/utils/encoders.so \
 					bin/utils/fileutil.so \
 					bin/utils/io.so \
+					bin/utils/mime.so \
 					bin/utils/util.so
 SUBBINARIES = $(GENERALBINARIES) $(HTTPBINARIES) $(HTTP2BINARIES)
 
@@ -63,7 +64,7 @@ bin/config/reader.so: src/configuration/reader.c src/configuration/config.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/config/validation.so: src/configuration/validator.c src/configuration/config.h
 	$(CC) -o $@ -c $(CFLAGS) $<
-bin/handling/handlers.so: src/handling/handlers.c src/handling/handlers.h
+bin/handling/handlers.so: src/handling/handlers.c src/handling/handlers.h src/handling/fileserver.c src/handling/fallback_responses.c src/handling/handler_utils.c
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/secure/implopenssl.so: src/secure/impl/implopenssl.c src/secure/tlsutil.h src/secure/impl/ossl-ocsp.c src/utils/fileutil.h
 	$(CC) -o $@ -c $(CFLAGS) $< $(LDFLAGS)
@@ -76,6 +77,8 @@ bin/utils/encoders.so: src/utils/encoders.c src/utils/encoders.h
 bin/utils/fileutil.so: src/utils/fileutil.c src/utils/fileutil.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/utils/io.so: src/utils/io.c src/utils/io.h src/secure/tlsutil.h
+	$(CC) -o $@ -c $(CFLAGS) $<
+bin/utils/mime.so: src/utils/mime.c src/utils/mime.h
 	$(CC) -o $@ -c $(CFLAGS) $<
 bin/utils/util.so: src/utils/util.c src/utils/util.h
 	$(CC) -o $@ -c $(CFLAGS) $<

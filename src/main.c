@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
 
 	/** handler configuration options: **/
 	if (!handle_setup(config)) {
-		fputs("[Handlers] Failed setup.\n", stderr);
+		fputs("[Handlers] Handlers setup failure!\n", stderr);
 		config_destroy(config);
 		return EXIT_FAILURE;
 	}

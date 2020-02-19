@@ -41,6 +41,7 @@ void http1_write_response(TLS tls, http_response_t *response) {
 			free(buffer);
 		} else {
 			if (i != 0) {
+				printf("Debug: %s", http_rhnames[header->name]);
 				size_t sbuffer;
 				char *buffer = compose_header_line(&sbuffer, header->name, header->value);
 				buffer[sbuffer-3] = 0;
@@ -110,16 +111,16 @@ http_header_list_t *http1_parse(TLS tls) {
 		printf("[HTTP/1.1] Header Error: %s\n", header_errors[error]);
 		goto clean;
 	}
-	
+
 	const char *hostv;
 	if (http_host_strict && (hostv = http_header_list_getd(headers, HEADER_AUTHORITY)) && strcmp(GLOBAL_SETTING_host, hostv)) {
 		http_handle_error_gracefully(tls, HTTP_ERROR_INVALID_HOST, version, 0);
 		goto clean;
 	}
-	
+
 	free(version); /* TODO */
 	return headers;
-	
+
 	/* the ("clean") label is only used when things go wrong */
 	clean:
 	free(version); /* TODO */

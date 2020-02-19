@@ -18,20 +18,24 @@
  * first "normal" header, since statuses should be at 
  * the end as they are special; they are not headers in
  * HTTP < 2 */
-#define HTTP_RH_STATUSES 3
+#define HTTP_RH_STATUSES 6
 
 typedef enum {
-	HTTP_RH_STATUS_200 = 0x0,
-	HTTP_RH_STATUS_204 = 0x1,
-	HTTP_RH_STATUS_404 = 0x2,
-	HTTP_RH_CONTENT_LENGTH = 0x3,
-	HTTP_RH_CONTENT_TYPE = 0x4,
-	HTTP_RH_DATE = 0x5,
-	HTTP_RH_SERVER = 0x6,
-	HTTP_RH_TK = 0x7,
-	HTTP_RH_VARY = 0x8,
-	HTTP_RH_CONTENT_ENCODING = 0x9,
-	HTTP_RH_STRICT_TRANSPORT_SECURITY = 0xA
+	HTTP_RH_STATUS_200,
+	HTTP_RH_STATUS_204,
+	HTTP_RH_STATUS_400,
+	HTTP_RH_STATUS_404,
+	HTTP_RH_STATUS_500,
+	HTTP_RH_STATUS_503,
+	HTTP_RH_CONTENT_LENGTH,
+	HTTP_RH_CONTENT_TYPE,
+	HTTP_RH_DATE,
+	HTTP_RH_SERVER,
+	HTTP_RH_TK,
+	HTTP_RH_VARY,
+	HTTP_RH_CONTENT_ENCODING,
+	HTTP_RH_STRICT_TRANSPORT_SECURITY,
+	HTTP_RH_LAST_MODIFIED
 } http_response_header_name;
 
 /* These are the text representation for HTTP/1.1 of the enums above,

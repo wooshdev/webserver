@@ -12,7 +12,10 @@
 const char *http_rhnames[] = {
 	"HTTP/1.1 200 OK\r\n",
 	"HTTP/1.1 204 No Content\r\n",
+	"HTTP/1.1 400 Bad Request\r\n",
 	"HTTP/1.1 404 Not Found\r\n",
+	"HTTP/1.1 500 Internal Server Error\r\n",
+	"HTTP/1.1 503 Service Unavailable\r\n",
 	"Content-Length: ",
 	"Content-Type: ",
 	"Date: ",
@@ -21,6 +24,7 @@ const char *http_rhnames[] = {
 	"Vary: ",
 	"Content-Encoding: ",
 	"Strict-Transport-Security: ",
+	"Last-Modified: "
 };
 
 http_response_headers_t *http_create_response_headers(size_t initial_size) {
