@@ -24,9 +24,9 @@
  *     The maximum bytes to be read (+1 because of the null-terminator char)
  * 
  * Return value:
+ *   -2 I/O failure
  *   -1 maximum read-size reached
- *    0 I/O failure
- *   >0 success, the length of the string, excluding the NULL-terminator
+ *  >=0 success, the length of the string, excluding the NULL-terminator
  */
 int io_read_until(TLS, char *, char, size_t);
 

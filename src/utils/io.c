@@ -16,8 +16,8 @@ int io_read_until(TLS source, char *dest, char until, size_t max) {
 	size_t pos = 0;
 	do {
 		if (!tls_read_client(source, buffer, 1)) {
-			puts(">> failed to read from tls_read");
-			return 0;
+			puts("failed to read from tls_read");
+			return -2;
 		}
 
 		dest[pos] = buffer[0];

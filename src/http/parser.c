@@ -44,7 +44,7 @@ int http_parser_setup() {
 
 int http_parse_method(TLS source, char *dest, size_t size) {
 	/* read from TLS */
-	if (io_read_until(source, dest, ' ', size) <= 0) {
+	if (io_read_until(source, dest, ' ', size) < 0) {
 		return 0;
 	}
 
@@ -88,7 +88,7 @@ size_t http_parse_headers(TLS tls, http_header_list_t *headers) {
 			goto end;
 		}
 
-		if ((read = io_read_until(tls, key_buffer+2, ':', HTTP_HEADERS_KEY_MAX_LENGTH-2)) <= 0) {
+		if ((read = io_read_until(tls, key_buffer+2, ':', HTTP_HEADERS_KEY_MAX_LENGTH-2)) < 0) {
 			error = HTTP_PARSER_ERROR_READ;
 			goto end;
 		}
@@ -106,7 +106,7 @@ size_t http_parse_headers(TLS tls, http_header_list_t *headers) {
 		}
 
 		/* read header value */
-		if ((read = io_read_until(tls, value_buffer, '\n', HTTP_HEADERS_VALUE_MAX_LENGTH)) <= 0) {
+		if ((read = io_read_until(tls, value_buffer, '\n', HTTP_HEADERS_VALUE_MAX_LENGTH)) < 0) {
 			free(key);
 			printf("value_buffer read: %i\n", read);
 			error = HTTP_PARSER_ERROR_READ;
