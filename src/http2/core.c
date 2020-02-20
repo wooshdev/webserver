@@ -413,14 +413,22 @@ void http2_handle(TLS tls) {
 					printf("\x1b[35mPriority> \x1b[0mstream=%u e=%s s-depend=%u weight=%hhi\n", frame->r_s_id & BITS31, e ? "true" : "false", stream_dependency, weight);
 				} break;
 				case FRAME_RST_STREAM:
+					/*
 					fputs("\x1b[33mEnd (semi-gracefully) requested, ", stdout);
 					if (frame->length == 4) {
 						printf("reason: %s\x1b[0m\n", h2_error_codes[u32(frame->data)]);
 					} else {
 						puts("but the reason was corrupted.");
 					}
-					send_goaway(tls, H2_CANCEL, 0x0);
-					goto end;
+					*/
+					/**
+					 * If a RST_STREAM frame is received with a stream identifier of 0x0,
+					 * the recipient MUST treat this as a connection error (Section 5.4.1)
+					 * of type PROTOCOL_ERROR */
+					if (frame->r_s_id == 0x0) {
+						send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
+						goto end;
+					}
 					break;
 				case FRAME_SETTINGS:
 					if (!(frame->flags & FLAG_ACK)) {
