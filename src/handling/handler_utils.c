@@ -6,7 +6,7 @@
 	/* TODO: Ensure length_buffer is big enough for size.
 	 * unfortunately, I can't use snprintf because it isn't in POSIX '89/C89*/
 	char *length_buffer = calloc(128, sizeof(char));
-	int result = sprintf(length_buffer, "%zu", size);
+	int result = sprintf(length_buffer, "%zu", size) + 1;
 	if (result <= 0) {
 		printf("[Handlers] Failed to write length! Value=%zu\n", size);
 		free(length_buffer);
