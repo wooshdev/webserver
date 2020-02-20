@@ -40,6 +40,15 @@ static void setup_responses(void) {
 	response_no_service->body_size = size;
 }
 
+static void destroy_fallback_responses(void) {
+	http_response_headers_destroy(response_invalid_request->headers);
+	http_response_headers_destroy(response_no_service->headers);
+	free(response_invalid_request->body);
+	free(response_no_service->body);
+	free(response_invalid_request);
+	free(response_no_service);
+}
+
 static void destroy_handler(http_handler_t *handler) {
 	if (handler->overwrite_header_count > 0) {
 		size_t i;
