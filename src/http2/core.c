@@ -410,7 +410,7 @@ void http2_handle(TLS tls) {
 					uint32_t stream_dependency = u32(frame->data) & BITS31;
 					uint8_t weight = frame->data[4];
 					
-					printf("\x1b[35m > Priority stream=%u e=%s s-depend=%u weight=%hhi\n", frame->r_s_id & BITS31, e ? "true" : "false", stream_dependency, weight);
+					printf("\x1b[35mPriority> \x1b[0mstream=%u e=%s s-depend=%u weight=%hhi\n", frame->r_s_id & BITS31, e ? "true" : "false", stream_dependency, weight);
 				} break;
 				case FRAME_RST_STREAM:
 					fputs("\x1b[33mEnd (semi-gracefully) requested, ", stdout);
