@@ -234,6 +234,7 @@ error_all:
 }
 
 void handle_destroy() {
+	destroy_fallback_responses();
 	size_t i;
 	for (i = 0; i < handler_count; i++) {
 		destroy_handler(handlers[i]);
