@@ -131,16 +131,10 @@ static void write_str(char *data, const char *str, size_t *pos) {
 	(*pos) += j;
 }
 
-static const char *simple = "<body style=\"color:white;background:black;display:flex;align-items:center;width:100%;height:100%;justify-items:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:60px;text-align:center\"><h1>This is sent via HTTP/2!</h1></body>";
-
 static void h2_callback_headers_ready(http_response_headers_t *response_headers, size_t app_data_len, void **application_data) {
 
 	TLS tls = (TLS) application_data[0];
 	frame_t *frame = (frame_t *)application_data[1];
-
-	/* headers MUST not get strings longer than 256 octets in size. */
-	char *length_buffer = calloc(256, sizeof(char));
-	sprintf(length_buffer, "%zu", strlen(simple));
 	
 	char *headers = calloc(1, 256);
 	size_t i, pos = 0;
@@ -234,7 +228,6 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
  		bp += bpleft;
  	}
  	*/
-	free(length_buffer);
 
 	/* reparse to see if/where the (an) error is. */ /*{
 		frame_t *temp_frame = malloc(sizeof(frame_t));
