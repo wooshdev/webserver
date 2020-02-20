@@ -195,14 +195,16 @@ int main(int argc, char **argv) {
 		
 		client_start(data);
 	}
-	thread_manager_wait_or_kill();
 
+	puts("DEBUG: graceful end of execution");
+	thread_manager_wait_or_kill();
 	handle_destroy();
 	close(sock);
 	tls_destroy();
 	GLOBAL_SETTINGS_destroy();
 	encoder_destroy();
 	http_header_parser_destroy();
+	http2_destroy();
 
 	return EXIT_SUCCESS;
 }

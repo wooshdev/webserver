@@ -14,6 +14,7 @@
 void http2_handle(TLS);
 
 int http2_setup(void);
+void http2_destroy(void);
 
 /* settings entry (RFC 7540 Section 6.5.1)*/
 typedef struct {

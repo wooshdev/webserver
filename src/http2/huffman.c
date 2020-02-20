@@ -125,4 +125,16 @@ int huff_setup() {
 	
 	return 1;
 }
- 
+
+/* recursively destroying the node and its children */
+void destroy_node(hnode_t *node) {
+	if (node->left)  destroy_node(node->left);
+	if (node->right) destroy_node(node->right);
+	free(node);
+}
+
+void huff_destroy(void) {
+	if (tree)
+		destroy_node(tree);
+}
+

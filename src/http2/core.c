@@ -476,3 +476,7 @@ void http2_handle(TLS tls) {
 int http2_setup() {
 	return huff_setup();
 }
+
+void http2_destroy() {
+	huff_destroy();
+}

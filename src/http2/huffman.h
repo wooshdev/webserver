@@ -31,3 +31,9 @@ char *huff_decode(const char *, const size_t);
  *   Success status.
  */
 int huff_setup(void);
+
+/**
+ * Description:
+ *   This function will destroy all data allocated by huff_setup.
+ */
+void huff_destroy(void);
