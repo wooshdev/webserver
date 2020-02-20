@@ -98,12 +98,12 @@ static int send_settings_ack(TLS tls) {
 }
 
 static void send_rst(TLS tls, uint32_t error) {
-	printf("[\x1b[33m[!] Sending RST_STREAM frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
+	printf("\x1b[33m[!] Sending RST_STREAM frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
 	send_frame(tls, 4, FRAME_RST_STREAM, 0, 0, (char *)&error);
 }
 
 static void send_goaway(TLS tls, uint32_t error, uint32_t stream) {
-	printf("[\x1b[33m[!] Sending GOWAY frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
+	printf("\x1b[33m[!] Sending GOWAY frame! Error: %s\x1b[0m\n", h2_error_codes[error]);
 	char *buf = malloc(8);
 	buf[0] = (stream >> 24) & 0xFF;
 	buf[1] = (stream >> 16) & 0xFF;
@@ -123,7 +123,7 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
 
 	size_t size = 0;
 	char *headers = write_headers(response_headers, &size);
-	
+
 	/* reparse to see if/where the (an) error is. */ /*{
 		frame_t *temp_frame = malloc(sizeof(frame_t));
 		temp_frame->flags = FLAG_END_HEADERS;
@@ -168,6 +168,13 @@ static void h2_handle(TLS tls, frame_t *frame, http_header_list_t *request_heade
 	}
 }
 
+const char *get_frame_name(uint32_t type) {
+	if (type > FRAME_ORIGIN)
+		return "Unassigned";
+	else
+		return frame_types[type];
+}
+
 void http2_handle(TLS tls) {
 	uint32_t window_size = UINT16_MAX;
 	size_t settings_count = HTTP2_SETTINGS_COUNT;
@@ -208,6 +215,8 @@ void http2_handle(TLS tls) {
 		send_frame(tls, 4, FRAME_WINDOW_UPDATE, 0x0, 0x0, (char *)&size);
 	}
 
+	h2stream_list_t *streams = h2stream_list_create(65535);
+
 	if (GLOBAL_SETTING_origin) {
 		size_t len = strlen(GLOBAL_SETTING_origin);
 		char *origin_frame = malloc(2 + len);
@@ -225,12 +234,12 @@ void http2_handle(TLS tls) {
 			send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
 			goto end;
 		}
-    
+
 		/* SETTINGS frames should have a length of a multiple of 6 octets. */
 		if (frame->length % 6 != 0) {
 			puts("\x1b[33m > Invalid settings frame (length error).\x1b[0m");
 			send_goaway(tls, H2_FRAME_SIZE_ERROR, 0x0);
-			goto end;
+			goto frame_end;
 		}
 	
 		H2_ERROR result = handle_settings(frame, settings);
@@ -253,6 +262,52 @@ void http2_handle(TLS tls) {
 			#ifdef BENCHMARK			
 				clock_t start_time = clock();
 			#endif
+
+			switch (h2stream_get_state(streams, frame->r_s_id)) {
+				case H2_STREAM_IDLE:
+					if (frame->type == FRAME_HEADERS) {
+						h2stream_set_state(streams, frame->r_s_id, H2_STREAM_OPEN);
+					} else if (frame->type != FRAME_PRIORITY) {
+						printf("PROTOCOL_ERROR: Client has sent a %s on a stream which is idle.\n", get_frame_name(frame->type));
+						send_goaway(tls, H2_PROTOCOL_ERROR, frame->r_s_id);
+						goto frame_end;
+					}
+					break;
+				case H2_STREAM_HALF_CLOSED_LOCAL:
+					if (frame->type != FRAME_WINDOW_UPDATE && frame->type != FRAME_PRIORITY && frame->type != FRAME_RST_STREAM) {
+						printf("PROTOCOL_ERROR: Client has sent a %s on a stream which is half_closed (local).\n", get_frame_name(frame->type));
+						send_goaway(tls, H2_STREAM_CLOSED, frame->r_s_id);
+						goto frame_end;
+					}
+					break;
+				case H2_STREAM_HALF_CLOSED_REMOTE:
+					if (frame->type != FRAME_WINDOW_UPDATE && frame->type != FRAME_PRIORITY && frame->type != FRAME_RST_STREAM) {
+						printf("PROTOCOL_ERROR: Client has sent a %s on a stream which is half_closed (remote).\n", get_frame_name(frame->type));
+						send_goaway(tls, H2_STREAM_CLOSED, frame->r_s_id);;
+						goto frame_end;
+					}
+					break;
+				case H2_STREAM_CLOSED_STATE:
+					if (frame->type != FRAME_PRIORITY) {
+						if (frame->type == FRAME_WINDOW_UPDATE || frame->type == FRAME_RST_STREAM) {
+							printf("TODO: Client has sent a %s on a stream which is closed (may be a short time after closing).\n", get_frame_name(frame->type));
+							break;
+						}
+						printf("PROTOCOL_ERROR: Client has sent a %s on a stream which is closed.\n", get_frame_name(frame->type));
+						send_goaway(tls, H2_STREAM_CLOSED, frame->r_s_id);
+						goto frame_end;
+					}
+					break;
+				case H2_STREAM_RESERVED_LOCAL:
+					if (frame->type != FRAME_WINDOW_UPDATE && frame->type != FRAME_PRIORITY && frame->type != FRAME_RST_STREAM) {
+						printf("PROTOCOL_ERROR: Client has sent a %s on a stream which is reserved (local).\n", get_frame_name(frame->type));
+						send_goaway(tls, H2_PROTOCOL_ERROR, frame->r_s_id);
+					}
+					break;
+				default:
+					break;
+			}
+
 			switch (frame->type) {
 				case FRAME_DATA:
 					
@@ -291,7 +346,7 @@ void http2_handle(TLS tls) {
 					if (frame->length != 5) {
 						/* connection error */
 						send_rst(tls, H2_FRAME_SIZE_ERROR);
-						goto end;
+						goto frame_end;
 					}
 					
 					char e = frame->data[0] & 0x10;
@@ -315,8 +370,9 @@ void http2_handle(TLS tls) {
 					 * of type PROTOCOL_ERROR */
 					if (frame->r_s_id == 0x0) {
 						send_goaway(tls, H2_PROTOCOL_ERROR, 0x0);
-						goto end;
+						goto frame_end;
 					}
+					h2stream_set_state(streams, frame->r_s_id, H2_STREAM_CLOSED_STATE);
 					break;
 				case FRAME_SETTINGS:
 					if (!(frame->flags & FLAG_ACK)) {
@@ -328,7 +384,7 @@ void http2_handle(TLS tls) {
 					if (frame->length != 8) {
 						puts("\x1b[33m > Invalid ping frame (length error).\x1b[0m");
 						send_goaway(tls, H2_FRAME_SIZE_ERROR, 0x0);
-						goto end;
+						goto frame_end;
 					}
 					if (!(frame->flags & FLAG_ACK)) {
 						send_frame(tls, 8, FRAME_PING, FLAG_ACK, 0x0, frame->data);
@@ -341,14 +397,14 @@ void http2_handle(TLS tls) {
 					if (frame->length != 4) {
 						/* connection error */
 						send_rst(tls, H2_FRAME_SIZE_ERROR);
-						goto end;
+						goto frame_end;
 					}
 					uint32_t wsi = u32(frame->data) & 0xEFFFFFFF;
 					if (window_size == wsi) {
 						/* connection error */
 						puts("Illegal Window Size! (i.e. a PROTOCOL_ERROR)");
 						send_rst(tls, H2_PROTOCOL_ERROR);
-						goto end;
+						goto frame_end;
 					}
 					/*
 					printf(" > Size Increment: 0x%X or 0x%X = %u %u\n", u32(frame->data), wsi, u32(frame->data), wsi);
@@ -370,6 +426,13 @@ void http2_handle(TLS tls) {
 					break;
 			}
 
+			if (frame->flags & FLAG_END_STREAM) {
+				if (frame->r_s_id == 0) {
+					puts("TODO: END_STREAM flag set on stream 0!");
+				} else {
+					h2stream_set_state(streams, frame->r_s_id, H2_STREAM_HALF_CLOSED_REMOTE);
+				}
+			}
 
 #ifdef BENCHMARK
 			printf("\033[0;33mFrame> \033[0;32m%s \033[0mtook \033[0;35m%.3f ms\033[0m to process...\n", frame_types[frame->type], (clock()-start_time)/1000.0);
@@ -378,6 +441,13 @@ void http2_handle(TLS tls) {
 			free(frame->data);
 			previous_type = frame->type;
 			free(frame);
+			continue;
+			
+			frame_end:
+			free(frame->data);
+			previous_type = frame->type;
+			free(frame);
+			goto end;
 		}
 		
 		if (error != H2_NO_ERROR) {
@@ -394,6 +464,8 @@ void http2_handle(TLS tls) {
 	}
 	
 	end:
+	if (streams)
+		h2stream_list_destroy(streams);
 	if (dynamic_table)
 		dynamic_table_destroy(dynamic_table);
 	if (headers)

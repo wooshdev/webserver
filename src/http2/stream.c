@@ -8,10 +8,23 @@
 
 h2stream_list_t *h2stream_list_create(uint32_t max_size) {
 	h2stream_list_t *list = malloc(sizeof(h2stream_list_t));
-	list->count = 0;
+	if (!list)
+		return NULL;
+	list->count = 1;
 	list->max = max_size;
 	list->size = STREAM_LIST_STEP_SIZE;
 	list->streams = calloc(STREAM_LIST_STEP_SIZE, sizeof(h2stream_t *));
+	if (!list->streams) {
+		free(list);
+		return NULL;
+	}
+
+	/* set stream with id 0x0 to "open" */
+	if (!h2stream_set_state(list, 0x0, H2_STREAM_OPEN)) {
+		free(list->streams);
+		free(list);
+		return NULL;
+	}
 	return list;
 }
 
