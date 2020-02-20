@@ -42,5 +42,7 @@ void GLOBAL_SETTINGS_load(config_t config) {
 void GLOBAL_SETTINGS_destroy() {
 	free(GLOBAL_SETTING_host);
 	free(GLOBAL_SETTING_origin);
+	free(GLOBAL_SETTING_HEADER_tk);
+	free(GLOBAL_SETTING_HEADER_sts);
 	free(GLOBAL_SETTING_server_name);
 }
