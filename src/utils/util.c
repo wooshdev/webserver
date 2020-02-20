@@ -5,6 +5,7 @@
 #include "util.h"
 
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -20,7 +21,7 @@ int strswitch(const char *in, const char **list, size_t size, int case_flag) {
 	if (case_flag == CASEFLAG_IGNORE_B) {
 		size_t lsize = strlen(in);
 		
-		buffer = malloc(lsize * sizeof(char));
+		buffer = malloc((lsize + 1) * sizeof(char));
 		buffer[lsize] = 0;
 		
 		for (i = 0; i < lsize; i++)
