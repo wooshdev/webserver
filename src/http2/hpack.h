@@ -65,6 +65,23 @@ size_t parse_int(const char *, size_t *, size_t);
 
 /**
  * Description:
+ *	 Writes the data of (a) header frame(s) as per RFC 7541.
+ *
+ * Parameters:
+ *	 http_response_headers_t *
+ *     The headers to write.
+ *   size_t *
+ *     The pointer of a size_t to store the size of 
+ *      the return value in.
+ *
+ * Return Value:
+ *	 NULL if it failed, otherwise a buffer with its
+ *   size indicated by the second parameter.
+ */
+char *write_headers(http_response_headers_t *, size_t *);
+
+/**
+ * Description:
  *	 Parses a header frame as per RFC 7541.
  *
  * Parameters:
@@ -72,9 +89,8 @@ size_t parse_int(const char *, size_t *, size_t);
  *     The frame, the source of the header data.
  *   dynamic_table_t *
  *     The dynamic table to store indexed headers in.
- *
- * Return Value:
- *	 Nothing yet, this will change, though.
+ *   http_header_list_t *
+ *     The list to store the parsed headers in.
  */
 void handle_headers(frame_t *, dynamic_table_t *, http_header_list_t *);
 

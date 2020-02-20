@@ -117,118 +117,13 @@ static void send_goaway(TLS tls, uint32_t error, uint32_t stream) {
 	free(buf);
 }
 
-static void write_str(char *data, const char *str, size_t *pos) {
-	size_t j, length = strlen(str);
-	/*
-	printf("String length: 0x%zx or %zu\n", length, length);
-	*/
-	data[(*pos)] = length;
-	
-	(*pos) += 1;
-	for (j = 0; j < length; j++) {
-		data[(*pos) + j] = str[j];
-	}
-	(*pos) += j;
-}
-
 static void h2_callback_headers_ready(http_response_headers_t *response_headers, size_t app_data_len, void **application_data) {
-
 	TLS tls = (TLS) application_data[0];
 	frame_t *frame = (frame_t *)application_data[1];
-	
-	char *headers = calloc(1, 256);
-	size_t i, pos = 0;
-	http_response_header_t *header;
-	/*
-	printf(" Header count: %zu\n", list->count);
-	*/
-	for (i = 0; i < response_headers->count; i++) {
-		/*headers[pos] &= (1 << i);*/
-		header = response_headers->headers[i];
-		switch (header->name) {
-			case HTTP_RH_CONTENT_LENGTH:
-				headers[pos] = 0x5C; /* = 01011100 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_CONTENT_ENCODING:
-				headers[pos] = 0x5A; /* = 01011010 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_CONTENT_TYPE:
-				headers[pos] = 0x5F; /* = 01011111 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_DATE:
-				headers[pos] = 0x61; /* = 01100001 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_SERVER:
-				headers[pos] = 0x76; /* = 01110110 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_STRICT_TRANSPORT_SECURITY:
-				headers[pos] = 0x78; /* = 01111000 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_STATUS_200:
-				headers[pos] = 0x88; /* = 10001000 */
-				pos += 1;
-				break;
-			case HTTP_RH_STATUS_204:
-				headers[pos] = 0x89; /* = 10001001 */
-				pos += 1;
-				break;
-			case HTTP_RH_STATUS_400:
-				headers[pos] = 0x8C; /* = 10001100 */
-				pos += 1;
-				break;
-			case HTTP_RH_STATUS_404:
-				headers[pos] = 0x8D; /* = 10001101 */
-				pos += 1;
-				break;
-			case HTTP_RH_STATUS_500:
-				headers[pos] = 0x8E; /* = 10001110 */
-				pos += 1;
-				break;
-			case HTTP_RH_STATUS_503:
-				headers[pos] = 0x48; /* = 01001000 */
-				pos += 1;
-				write_str(headers, "503", &pos);
-				break;
-			case HTTP_RH_TK:
-				/* TODO: use dynamic table contents if it already is in table. */
-				headers[pos] = 0x40; /* = 01000000 */
-				pos += 1;
-				write_str(headers, "tk", &pos);
-				write_str(headers, header->value, &pos);
-				break;
-			case HTTP_RH_LAST_MODIFIED:
-				headers[pos] = 0x6C; /* = 01101100 */
-				pos += 1;
-				write_str(headers, header->value, &pos);
-				break;
-			default:
-				printf("(?) Unknown header type: %u\n", header->name);
-				break;
-		}
-	}
-	
-		/* Add EOS padding */
-	/* 	size_t bpleft = bp % 8;
- 	if (bpleft != 0) {
- 		for (i = 0; i < bpleft; i++) {
- 			headers[bp/8] &= (1 << i);
- 		}
- 		bp += bpleft;
- 	}
- 	*/
 
+	size_t size = 0;
+	char *headers = write_headers(response_headers, &size);
+	
 	/* reparse to see if/where the (an) error is. */ /*{
 		frame_t *temp_frame = malloc(sizeof(frame_t));
 		temp_frame->flags = FLAG_END_HEADERS;
@@ -241,9 +136,9 @@ static void h2_callback_headers_ready(http_response_headers_t *response_headers,
 		http_destroy_header_list(temp_headers);
 		free(temp_frame);
 	}*/
-	
+
 	/*printf(" > sending HEADERS frame, len=%zu\n", pos);*/
-	send_frame(tls, pos, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
+	send_frame(tls, size, FRAME_HEADERS, FLAG_END_HEADERS, frame->r_s_id, headers);
 	free(headers);
 }
 
