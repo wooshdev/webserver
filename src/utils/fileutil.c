@@ -121,6 +121,7 @@ secure_config_t *secure_config_letsencrypt() {
 			memcpy(sconfig->key		+ prefix_size, key_suffix, sizeof(key_suffix));
 			memcpy(sconfig->chain	+ prefix_size, chain_suffix, sizeof(chain_suffix));
 	
+			closedir(dir);
 			return sconfig;
 		}
 	}
