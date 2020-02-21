@@ -156,6 +156,7 @@ int handle_setup(config_t main_config) {
 						goto error_all;
 					}
 
+					handler->overwrite_header_count += 1;
 					break;
 				}
 				case 4: {/* "directory" */
