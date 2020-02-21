@@ -4,16 +4,17 @@
  */
 #include "stream.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 
 h2stream_list_t *h2stream_list_create(uint32_t max_size) {
 	h2stream_list_t *list = malloc(sizeof(h2stream_list_t));
 	if (!list)
 		return NULL;
-	list->count = 1;
+	list->count = 0;
 	list->max = max_size;
 	list->size = STREAM_LIST_STEP_SIZE;
-	list->streams = calloc(STREAM_LIST_STEP_SIZE, sizeof(h2stream_t *));
+	list->streams = malloc(STREAM_LIST_STEP_SIZE * sizeof(h2stream_t *));
 	if (!list->streams) {
 		free(list);
 		return NULL;
@@ -52,7 +53,7 @@ h2stream_t *h2stream_get(h2stream_list_t *list, uint32_t id) {
 	}
 	
 	if (list->count == list->size) {
-		h2stream_t **streams = realloc(list->streams, list->size + STREAM_LIST_STEP_SIZE);
+		h2stream_t **streams = realloc(list->streams, (list->size + STREAM_LIST_STEP_SIZE) * sizeof(h2stream_t *));
 		
 		if (!streams)
 			return NULL;
