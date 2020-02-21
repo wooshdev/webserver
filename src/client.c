@@ -71,7 +71,6 @@ void client_start_actual(void *data) {
 		puts("failed to setup TLS.");
 	}
 	clean:
-	puts("closed connection.");
 	close(client);
 }
 

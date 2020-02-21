@@ -104,7 +104,6 @@ int thread_manager_add(void *(*start_routine) (void *), void *arguments) {
 
 	thread_count += 1;
 	pthread_mutex_unlock(&mutex);
-	puts("ThreadManager: Added thread to pool.");
 	return 1;
 }
 
@@ -121,7 +120,6 @@ void thread_manager_finished(void) {
 			}
 			thread_count -= 1;
 			pthread_mutex_unlock(&mutex);
-			puts("ThreadManager: Removed thread from pool.");
 			pthread_exit(NULL);
 			return;
 		}

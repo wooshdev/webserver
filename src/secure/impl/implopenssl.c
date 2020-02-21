@@ -64,7 +64,8 @@ static int alpn_handle (SSL *ssl, const unsigned char **out, unsigned char *outl
 												const unsigned char *in, unsigned int inlen, void *arg) {
 	/* */
 	if (inlen == 0) {
-		puts("invalid alpn data...");
+		if (GLOBAL_SETTINGS_log_tls_errors)
+			puts("[TLSError] Received invalid ALPN data.");
 		return SSL_TLSEXT_ERR_ALERT_FATAL;
 	}
 	
@@ -80,7 +81,8 @@ static int alpn_handle (SSL *ssl, const unsigned char **out, unsigned char *outl
 	for (i = 0; i < inlen; /**/) {
 		unsigned int len = in[i++];
 		if (len + i > inlen || len + i > 254) {
-			puts("invalid alpn data...");
+			if (GLOBAL_SETTINGS_log_tls_errors)
+				puts("[TLSError] Received invalid ALPN data.");
 			return SSL_TLSEXT_ERR_ALERT_FATAL;
 		}
 		
@@ -259,12 +261,14 @@ void *tls_setup_client(int client) {
 	SSL *ssl = SSL_new(ctx);
 
 	if (!ssl) {
-		puts("[OpenSSL] (Client) Failed to create SSL object!");
+		if (GLOBAL_SETTINGS_log_tls_errors)
+			puts("[TLSError] (ClientSetup) Failed to create SSL object!");
 		return NULL;
 	}
 	if (!SSL_set_fd(ssl, client)) {
 		ERR_print_errors_fp(stderr);
-		puts("[OpenSSL] (Client) Failed to set file descriptor!");
+		if (GLOBAL_SETTINGS_log_tls_errors)
+			puts("[TLSError] (ClientSetup) Failed to set file descriptor!");
 		tls_destroy_client(ssl);
 		return NULL;
 	}
@@ -282,7 +286,8 @@ void *tls_setup_client(int client) {
 					goto error_end;
 			}
 			ERR_print_errors_fp(stderr);
-			printf("(OpenSSL) Accept error: %s or %i\n", get_ssl_error_name(error_code), error_code);
+			if (GLOBAL_SETTINGS_log_tls_errors)
+				printf("[TLSError] (ClientSetup) Accept error: %s or %i\n", get_ssl_error_name(error_code), error_code);
 			error_end:
 			tls_destroy_client(ssl);
 			return NULL;
@@ -307,11 +312,13 @@ int tls_read_client(void *pssl, char *result, size_t length) {
 		int error = SSL_get_error((const SSL *)pssl, resval);
 		if (error == SSL_ERROR_WANT_READ) {
 			if (!wait_for_read(SSL_get_rfd((const SSL *)pssl))) {
-				printf("tls_read_client: Failed to poll()!\n");
+				if (GLOBAL_SETTINGS_log_tls_errors)
+					puts("[TLSError] (Read) Poll failure");
 				return 0;
 			} else continue;
 		}
-		printf("tls_read_client error=%s\n", get_ssl_error_name(error));
+		if (GLOBAL_SETTINGS_log_tls_errors)
+			printf("[TLSError] (Read) Error: %s\n", get_ssl_error_name(error));
 		return 0;
 	}
 	return resval;
@@ -329,12 +336,12 @@ int tls_read_client_complete(void *pssl, char *result, size_t length) {
 			
 			if (error == SSL_ERROR_WANT_READ) {
 				if (!wait_for_read(SSL_get_rfd((const SSL *)pssl))) {
-					printf("tls_read_client_complete: Failed to poll()!\n");
+					if (GLOBAL_SETTINGS_log_tls_errors)
+						puts("[TLSError] (Read) Poll failure");
 					return 0;
 				} else continue;
 			}
-			
-			printf("tls_read_client_complete error=%s\n", get_ssl_error_name(error));
+
 			return 0;
 		}
 		read += bytes_read;
@@ -347,8 +354,9 @@ int tls_write_client(void *pssl, const char *data, size_t length) {
 	int i = SSL_write((SSL *) pssl, data, length);
 	if (i > 0)
 		return 1;
-	
-	printf("[OpenSSL] Failed to write data. Code=%s ssl=%p data=%p len=%zi\n", get_ssl_error_name(SSL_get_error((const SSL *)pssl, i)), pssl, data, length);
+
+	if (GLOBAL_SETTINGS_log_tls_errors)
+		printf("[TLSError] (Write) Failed to write data. Code=%s ssl=%p data=%p len=%zi\n", get_ssl_error_name(SSL_get_error((const SSL *)pssl, i)), pssl, data, length);
 	ERR_print_errors_fp(stderr);
 	return 0;
 }

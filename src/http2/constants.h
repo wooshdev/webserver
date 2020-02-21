@@ -49,6 +49,8 @@ typedef enum {
 extern const char *settings_ids[];
 /* RFC 7540: Section 6.x */
 extern const char *frame_types[];
+
+#define H2_ERROR_CODE_COUNT 14
 /* RFC 7540: Section 7 */
 extern const char *h2_error_codes[];
 

@@ -454,9 +454,15 @@ void http2_handle(TLS tls) {
 		
 		if (error != H2_NO_ERROR) {
 			send_goaway(tls, error, 0x0);
+			fputs("\x1b[31m[H2] Error: ", stdout);
+			if (error < H2_ERROR_CODE_COUNT)
+				puts(h2_error_codes[error]);
+			else
+				printf("Unknown or invalid error: 0x%X\n", error);
+			fputs("\x1b[0m", stdout);
+		} else {
+			
 		}
-		
-		printf("\x1b[32mEnd of frame stream. Reason: %s\n\x1b[0m\n", h2_error_codes[error]);
 	} else {
 		if (error == H2_NO_ERROR) {
 			PRTERR("I/O failure for settings frame.");

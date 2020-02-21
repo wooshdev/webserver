@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 		client_start(data);
 	}
 
-	puts("DEBUG: graceful end of execution begin");
+	puts("\nStopping server.");
 	thread_manager_wait_or_kill();
 	handle_destroy();
 	close(sock);
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
 	http_header_parser_destroy();
 	http2_destroy();
 
-	puts("DEBUG: graceful end of execution end");
+	puts("Successfully stopped server.");
 	return EXIT_SUCCESS;
 }
  

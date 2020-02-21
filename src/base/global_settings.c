@@ -10,6 +10,9 @@
 int GLOBAL_SETTINGS_cancel_requested;
 int GLOBAL_SETTING_read_timeout;
 
+int GLOBAL_SETTINGS_log_h2_recv_goaway;
+int GLOBAL_SETTINGS_log_tls_errors;
+
 char *GLOBAL_SETTING_host;
 char *GLOBAL_SETTING_origin;
 char *GLOBAL_SETTING_server_name; 
@@ -32,6 +35,10 @@ static void globset_set(char **dest, const char *value, char *initial) {
 void GLOBAL_SETTINGS_load(config_t config) {
 	GLOBAL_SETTINGS_cancel_requested = 0;
 	GLOBAL_SETTING_read_timeout = 200;
+
+	GLOBAL_SETTINGS_log_h2_recv_goaway = config_get_bool(config, "log-h2-receive-goaway", 0);
+	GLOBAL_SETTINGS_log_tls_errors = config_get_bool(config, "log-tls-errors", 0);
+
 	globset_set(&GLOBAL_SETTING_host, config_get(config, "hostname"), NULL);
 	globset_set(&GLOBAL_SETTING_origin, config_get(config, "origin"), NULL);
 	globset_set(&GLOBAL_SETTING_HEADER_sts, config_get(config, "strict-transport-security"), NULL);
