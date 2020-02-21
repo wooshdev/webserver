@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
 			}
 			
 			perror("Unknown client acceptance failure");
-			exit(EXIT_FAILURE);
+			break;
 		}
 		
 		int *data = malloc(sizeof(int));
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 		client_start(data);
 	}
 
-	puts("DEBUG: graceful end of execution");
+	puts("DEBUG: graceful end of execution begin");
 	thread_manager_wait_or_kill();
 	handle_destroy();
 	close(sock);
@@ -206,6 +206,7 @@ int main(int argc, char **argv) {
 	http_header_parser_destroy();
 	http2_destroy();
 
+	puts("DEBUG: graceful end of execution end");
 	return EXIT_SUCCESS;
 }
  
