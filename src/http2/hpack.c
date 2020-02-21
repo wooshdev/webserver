@@ -493,13 +493,15 @@ void handle_headers(frame_t *frame, dynamic_table_t *dynamic_table, http_header_
 		}
 	}
 	#endif
-	
+
+	free(data);
 	return;
 	
 error_label:
 	#ifdef HPACK_LOGGING_ERROR
 	puts("Parsing error encountered.");
 	#endif
+	free(data);
 	return;
 }
  

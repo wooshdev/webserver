@@ -87,13 +87,13 @@ void http_response_headers_destroy(http_response_headers_t *);
  *     The header list to add the header to.
  *   http_response_header_name
  *     The name of the header. (Also known as the key of the header)
- *   char *
+ *   const char *
  *     The header value. 
- *     This value will be duplicated but freed by http_response_headers_destroy
+ *     This value will be duplicated but the duplicated value will be freed by http_response_headers_destroy
  *
  * Return Value:
  *   (Boolean) Success Status
  */
-int http_response_headers_add(http_response_headers_t *, http_response_header_name, char *);
+int http_response_headers_add(http_response_headers_t *, http_response_header_name, const char *);
 
 #endif /* HTTP_RESPONSE_HEADERS_H */

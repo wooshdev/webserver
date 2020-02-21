@@ -293,7 +293,11 @@ void *tls_setup_client(int client) {
 }
 
 void tls_destroy_client(void *ssl) {
-	SSL_shutdown((SSL *) ssl);
+	char unused[1];
+	/* poll the connection */
+	if (SSL_get_error((const SSL *)ssl, SSL_read((SSL *)ssl, unused, 1)) == SSL_ERROR_NONE) {
+		SSL_shutdown((SSL *) ssl);
+	}
 	SSL_free((SSL *) ssl);
 }
 

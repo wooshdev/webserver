@@ -90,7 +90,9 @@ static int send_settings(TLS tls) {
 	buf[4] = 0x00;
 	buf[5] = 0x01;
 	
-	return send_frame(tls, 6, FRAME_SETTINGS, 0x0, 0x0, buf);
+	int ret = send_frame(tls, 6, FRAME_SETTINGS, 0x0, 0x0, buf);
+	free(buf);
+	return ret;
 }
 
 static int send_settings_ack(TLS tls) {
@@ -464,6 +466,7 @@ void http2_handle(TLS tls) {
 	}
 	
 	end:
+	free(settings);
 	if (streams)
 		h2stream_list_destroy(streams);
 	if (dynamic_table)

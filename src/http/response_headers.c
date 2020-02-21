@@ -55,7 +55,7 @@ void http_response_headers_destroy(http_response_headers_t *list) {
 	free(list);
 }
 
-int http_response_headers_add(http_response_headers_t *list, http_response_header_name name, char *value) {
+int http_response_headers_add(http_response_headers_t *list, http_response_header_name name, const char *value) {
 	if (!list) {
 		puts("\x1b[31m[HTTPResponseHeaders] Error: HeaderList is null\x1b[0m");
 		return 0;
@@ -78,7 +78,7 @@ int http_response_headers_add(http_response_headers_t *list, http_response_heade
 	}
 
 	header->name = name;
-	header->value = value ? strdup(value) : value;
+	header->value = value ? strdup(value) : NULL;
 
 	list->headers[list->count++] = header;
 	return 1;

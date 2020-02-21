@@ -65,6 +65,8 @@ void client_start_actual(void *data) {
 				fputs("Invalid AP!\n", stderr);
 				goto clean;
 		}
+
+		tls_destroy_client(tls);
 	} else {
 		puts("failed to setup TLS.");
 	}

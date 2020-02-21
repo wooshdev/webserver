@@ -171,5 +171,6 @@ const char *mime_from_path(const char *path) {
 	extdup[extlen-1] = 0;
 
 	int pos = strswitch(extdup, ext, sizeof(ext)/sizeof(ext[0]), CASEFLAG_DONT_IGNORE);
+	free(extdup);
 	return pos == -1 ? NULL : mimes[pos];
 }

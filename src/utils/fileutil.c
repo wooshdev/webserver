@@ -76,6 +76,7 @@ secure_config_t *secure_config_manual(config_t config) {
 	}
 	
 	secure_config_t *sconfig = malloc(sizeof(secure_config_t));
+	sconfig->ocsp_file = NULL;
 	strcpy(sconfig->cert, cert);
 	strcpy(sconfig->chain, chain);
 	strcpy(sconfig->key, key);
@@ -102,6 +103,7 @@ secure_config_t *secure_config_letsencrypt() {
 	while ((ent = readdir(dir))) {
 		if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") && strcmp(ent->d_name, "..")) {
 			secure_config_t *sconfig = malloc(sizeof(secure_config_t));
+			sconfig->ocsp_file = NULL;
 			
 			char prefix[256];
 			

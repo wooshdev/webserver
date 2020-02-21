@@ -132,7 +132,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	if (!http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL) ||
 		!handle_write_length(response->headers, length) ||
 		!header_write_date(response->headers) ||
-		!http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, strdup(mime_type)) ||
+		!http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, mime_type) ||
 		!http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name) ||
 		(GLOBAL_SETTING_HEADER_sts && !http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts)) ||
 		(GLOBAL_SETTING_HEADER_tk && !http_response_headers_add(response->headers, HTTP_RH_TK, GLOBAL_SETTING_HEADER_tk)) ||
