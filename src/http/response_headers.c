@@ -12,6 +12,7 @@
 const char *http_rhnames[] = {
 	"HTTP/1.1 200 OK\r\n",
 	"HTTP/1.1 204 No Content\r\n",
+	"HTTP/1.1 304 Not Modified\r\n",
 	"HTTP/1.1 400 Bad Request\r\n",
 	"HTTP/1.1 404 Not Found\r\n",
 	"HTTP/1.1 500 Internal Server Error\r\n",

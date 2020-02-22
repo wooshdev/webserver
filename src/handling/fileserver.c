@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "http/header_parser.h"
+
 #include "utils/mime.h"
 
 char *create_full_path(const char *wdir, const char *path, const char *optional) {
@@ -35,6 +37,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	int fd = 0;
 	struct stat *stat_buf = NULL;
 	char *fullpath = NULL;
+	char *file_last_modified = NULL;
 
 	http_response_t *response = malloc(sizeof(http_response_t));
 	if (!response)
@@ -128,17 +131,77 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	}
 	/* TODO add charsets: "text/html; charset=UTF-8"*/
 
+
+	file_last_modified = format_date(stat_buf->st_mtime);
+
+	if (!file_last_modified) {
+		puts("DEBUG: Warning format_date on file_last_modified failed! (This is probably not handled correctly!");
+		goto error_end;
+	}
+
+	int client_has_good_cache = 0;
+	if (fs->send_mod) {
+		const char *cache_control = http_header_list_gets(request_headers, "cache-control");
+		if (!cache_control)
+			cache_control = http_header_list_gets(request_headers, "pragma");
+
+		/* only use the client's cache when it wants to (i.e. Cache-Control or Pragma doesn't contain the '*/
+		if (!cache_control || !http_parse_cache_control(cache_control)) {
+			const char *if_modified_since = http_header_list_gets(request_headers, "if-modified-since");
+			if (if_modified_since && strlen(if_modified_since) > 0) {
+				/*
+				struct tm *tm = malloc(sizeof(struct tm));
+				memset(tm, 0, sizeof(struct tm));
+				char *fcnp = strptime(if_modified_since, TIME_FORMAT, tm);
+				*/
+				/* First Character Not Processed (See https://linux.die.net/man/3/strptime) */
+				/*
+				if (!fcnp || fcnp[0] == 0 || fcnp[0] == '\t' || fcnp[0] != ' ')) {
+					printf("DEBUG: Invalid If-Modified-Since: '%s'\n", if_modified_since);
+				} else {
+					
+				}
+				free(tm);
+				*/
+				/* We could do the above, but maybe a stupid strcmp can do the job (maybe even faster) */
+				int res = strcmp(if_modified_since, file_last_modified);
+				if (res == 0) {
+					client_has_good_cache = 1;
+				} else {
+					printf("DEBUG: '%s' != '%s' strcmp=%i\n", if_modified_since, file_last_modified, res);
+					size_t i;
+					for (i = 0; i < request_headers->count; i++) {
+						printf("\t> '%s' => '%s'\n", request_headers->headers[i]->key, request_headers->headers[i]->value);
+					}
+				}
+			}
+		} else {
+			puts("\x1b[94;1mDEBUG: The server acknowledges that the client doesn't want to use it's cache.\x1b[0m");
+		}
+	}
+
 	size_t length = stat_buf->st_size;
-	if (!http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL) ||
-		!handle_write_length(response->headers, length) ||
-		!header_write_date(response->headers) ||
+
+	if (client_has_good_cache) {
+		if (!http_response_headers_add(response->headers, HTTP_RH_STATUS_304, NULL)) {
+			puts("DEBUG: FS MemoryError on 304 headers.");
+			goto error_end;
+		}
+	} else {
+		if (!http_response_headers_add(response->headers, HTTP_RH_STATUS_200, NULL) ||
+			!handle_write_length(response->headers, length) ||
+			(fs->send_mod && !http_response_headers_add(response->headers, HTTP_RH_LAST_MODIFIED, file_last_modified))) {
+			puts("DEBUG: FS MemoryError on 200 headers.");
+			goto error_end;
+		}
+	}
+
+	if (!header_write_date(response->headers) ||
 		!http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, mime_type) ||
 		!http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name) ||
 		(GLOBAL_SETTING_HEADER_sts && !http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts)) ||
-		(GLOBAL_SETTING_HEADER_tk && !http_response_headers_add(response->headers, HTTP_RH_TK, GLOBAL_SETTING_HEADER_tk)) ||
-		(fs->send_mod && !header_write_last_modified(response->headers, stat_buf->st_mtime))
-		) {
-		puts("DEBUG: FS MemoryError on 200 headers.");
+		(GLOBAL_SETTING_HEADER_tk && !http_response_headers_add(response->headers, HTTP_RH_TK, GLOBAL_SETTING_HEADER_tk))) {
+		puts("DEBUG: FS MemoryError on General headers.");
 		goto error_end;
 	}
 	if (callbacks && callbacks->headers_ready)
@@ -159,6 +222,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	response->body = buffer;
 	response->body_size = length;
 	close(fd);
+	free(file_last_modified);
 	free(stat_buf);
 	free(fullpath);
 	return response;
@@ -177,6 +241,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 		http_response_headers_destroy(response->headers);
 	free(response);
 	close(fd);
+	free(file_last_modified);
 	free(stat_buf);
 	free(fullpath);
 	return NULL;

@@ -18,11 +18,12 @@
  * first "normal" header, since statuses should be at 
  * the end as they are special; they are not headers in
  * HTTP < 2 */
-#define HTTP_RH_STATUSES 6
+#define HTTP_RH_STATUSES 7
 
 typedef enum {
 	HTTP_RH_STATUS_200,
 	HTTP_RH_STATUS_204,
+	HTTP_RH_STATUS_304,
 	HTTP_RH_STATUS_400,
 	HTTP_RH_STATUS_404,
 	HTTP_RH_STATUS_500,

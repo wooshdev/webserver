@@ -84,6 +84,48 @@ void http_header_parser_destroy(void) {
 	free(hp_compressors);
 }
 
+/**
+ * Description:
+ *   This function parses the header value of the 'Cache-Control' or 'Pragma' header.
+ *
+ * Parameters:
+ *   const char *
+ *     The value of the Cache-Control or Pragma header.
+ *
+ * Return Value:
+ *   (boolean) Does the header value contain the 'no-cache' token?
+ */
+int http_parse_cache_control(const char *value) {
+	char *srctext = strdup(value);
+	char *text = srctext;
+	char **ptext = &text;
+	char *token;
+
+	while ((token = strsep(ptext, ","))) {
+		begin_loop:
+		if (*token == 0)
+			break;
+		while (*token == ' ' || *token == '\t')
+			token += 1;
+		if (*token == 0)
+			break;
+		if (*token == ',') {
+			token += 1;
+			if (*token == 0)
+				break;
+
+			goto begin_loop;
+		}
+		if (strcasecmp(token, "no-cache") == 0) {
+			free(srctext);
+			return 1;
+		}
+	}
+
+	free(srctext);
+	return 0;
+}
+
 /* TODO:
  *   Use the variables in encoders.h (ENCODER_STATUS_gzip and ENCODER_STATUS_brotli)
  *   AND the configuration to determine the availability and preference of the encoders.

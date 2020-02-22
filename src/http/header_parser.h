@@ -35,6 +35,19 @@ compression_t http_parse_accept_encoding(const char *);
 
 /**
  * Description:
+ *   This function parses the header value of the 'Cache-Control' and 'Pragma' header.
+ *
+ * Parameters:
+ *   const char *
+ *     The value of the Cache-Control or Pragma header.
+ *
+ * Return Value:
+ *   (boolean) Does the header value contain the 'no-cache' token?
+ */
+int http_parse_cache_control(const char *);
+
+/**
+ * Description:
  *   This function sets the parser up.
  *
  * Parameters:

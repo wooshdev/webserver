@@ -2,7 +2,10 @@
  * Copyright (C) 2020 Tristan
  * For conditions of distribution and use, see copyright notice in the COPYING file.
  */
- static int handle_write_length(http_response_headers_t *headers, size_t size) {
+
+#define TIME_FORMAT "%a, %d %h %Y %T %z"
+
+static int handle_write_length(http_response_headers_t *headers, size_t size) {
 	/* TODO: Ensure length_buffer is big enough for size.
 	 * unfortunately, I can't use snprintf because it isn't in POSIX '89/C89*/
 	char *length_buffer = calloc(128, sizeof(char));
@@ -28,7 +31,7 @@
 static char *format_date(time_t the_time) {
 	char *value = calloc(128, sizeof(char));
 	if (!value) return 0;
-	size_t len = strftime(value, 128, "%a, %d %h %Y %T %z", localtime(&the_time));
+	size_t len = strftime(value, 128, TIME_FORMAT, localtime(&the_time));
 	return realloc(value, len + 1);
 }
 
@@ -37,15 +40,6 @@ static int header_write_date(http_response_headers_t *headers) {
 	if (!date)
 		return 0;
 	int i = http_response_headers_add(headers, HTTP_RH_DATE, date);
-	free(date);
-	return i;
-}
-
-static int header_write_last_modified(http_response_headers_t *headers, time_t lastmod) {
-	char *date = format_date(lastmod);
-	if (!date)
-		return 0;
-	int i = http_response_headers_add(headers, HTTP_RH_LAST_MODIFIED, date);
 	free(date);
 	return i;
 }
