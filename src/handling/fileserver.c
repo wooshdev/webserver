@@ -94,13 +94,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	}
 
 	if (fd <= 0 || (S_ISREG(stat_buf->st_mode) == 0)) {
-		if (fd > 0)
-			close(fd);
-
 		printf("DEBUG: File \"%s\" not found!\n", fullpath);
-
-		free(fullpath);
-		free(stat_buf);
 
 		size_t length = strlen(response_body_fs_not_found);
 		if (!http_response_headers_add(response->headers, HTTP_RH_STATUS_404, NULL) ||
@@ -122,7 +116,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 		if (callbacks && callbacks->headers_ready)
 			callbacks->headers_ready(response->headers, callbacks->application_data_length, callbacks->application_data);
 
-		return response;
+		goto general_end;
 	}
 
 	const char *temp_mime_type = mime_from_path(fullpath);
@@ -234,11 +228,8 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	} while (pos != length);
 	response->body = buffer;
 	response->body_size = length;
-	close(fd);
-	free(file_last_modified);
-	free(stat_buf);
-	free(fullpath);
-	return response;
+
+	goto general_end;
 	/*
 	size_t wdlen = strlen(handler->root);
 	int fa = (handler->root[wdlen-1] == '/');
@@ -252,11 +243,14 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	error_end:
 	if (response && response->headers)
 		http_response_headers_destroy(response->headers);
-	free(mime_type);
 	free(response);
+	response = NULL;
+
+	general_end:
 	close(fd);
 	free(file_last_modified);
 	free(stat_buf);
+	free(mime_type);
 	free(fullpath);
-	return NULL;
+	return response;
 }
