@@ -188,6 +188,10 @@ char *write_headers(http_response_headers_t *response_headers, size_t *size) {
 				headers[pos] = 0x89; /* = 10001001 */
 				pos += 1;
 				break;
+			case HTTP_RH_STATUS_304:
+				headers[pos] = 0x8B; /* = 10001011 */
+				pos += 1;
+				break;
 			case HTTP_RH_STATUS_400:
 				headers[pos] = 0x8C; /* = 10001100 */
 				pos += 1;
