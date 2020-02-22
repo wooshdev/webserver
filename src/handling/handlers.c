@@ -122,7 +122,7 @@ int handle_setup(config_t main_config) {
 								/* default settings: */ {
 									handler_fs_t *fs = (handler_fs_t *) handler->data;
 									fs->send_mod = 1;
-									fs->charset = NULL;
+									fs->charset = strdup("utf-8");
 								}
 								break;
 							default:
