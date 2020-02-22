@@ -11,6 +11,16 @@
 
 #include "util.h"
 
+static const char *const MIME_TYPE_javascript = "application/javascript";
+
+/**
+ * See <https://tools.ietf.org/html/rfc4329#section-1>
+ */
+static const char *scripting_media_types[] = {
+	MIME_TYPE_javascript,
+	"application/ecmascript"
+};
+
 static const char *ext[] = {
 	"aac",
 	"avi",
@@ -98,7 +108,7 @@ static const char *mimes[] = {
 	"image/jpeg",
 	"image/jpeg",
 	"image/jpeg",
-	"application/javascript",
+	MIME_TYPE_javascript,
 	"application/json",
 	"audio/mpeg",
 	"video/mpeg",
@@ -158,7 +168,7 @@ static const char *strchrlast(const char *str, char occ) {
 	return NULL;
 }
 
-const char *mime_from_path(const char *path) {
+const char *mime_from_path(const char *path, int *charset) {
 	const char *dot = strchrlast(path, '.');
 	if (!dot)
 		return NULL;
@@ -172,5 +182,22 @@ const char *mime_from_path(const char *path) {
 
 	int pos = strswitch(extdup, ext, sizeof(ext)/sizeof(ext[0]), CASEFLAG_DONT_IGNORE);
 	free(extdup);
-	return pos == -1 ? NULL : mimes[pos];
+	if (pos == -1)
+		return NULL;
+
+	if (charset) {
+		if (strstartsw(mimes[pos], "text/"))
+			*charset = 1;
+		else {
+			*charset = 0;
+			for (i = 0; i < sizeof(scripting_media_types) / sizeof(scripting_media_types[0]); i++) {
+				/* we can use == on pointers because they are the same */
+				if (mimes[pos] == scripting_media_types[i]) {
+					*charset = 1;
+					break;
+				}
+			}
+		}
+	}
+	return mimes[pos];
 }

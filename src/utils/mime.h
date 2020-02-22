@@ -14,10 +14,12 @@ void mime_test_print(void);
  * Parameters:
  *   char *
  *     The file path to guess from.
+ *   int *
+ *     (Optional) A boolean to store if the MIME-type should specify a charset.
  * 
  * Return value:
  *   NULL if it couldn't be determined, otherwise a static string.
  */
-const char *mime_from_path(const char *);
+const char *mime_from_path(const char *, int *);
 
 #endif /* UTILS_MIME_H */

@@ -119,12 +119,13 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 		goto general_end;
 	}
 
-	const char *temp_mime_type = mime_from_path(fullpath);
+	int should_have_charset = 0;
+	const char *temp_mime_type = mime_from_path(fullpath, fs->charset ? &should_have_charset : NULL);
 	if (!temp_mime_type) {
 		printf("[DEBUG] Unknown mime type for path: %s\n", fullpath);
 		temp_mime_type = "application/octet-stream";
 	}
-	if (fs->charset && strstartsw(temp_mime_type, "text/")) {
+	if (should_have_charset) {
 		const char *charset_middle = ";charset=";
 		size_t mime_len = strlen(temp_mime_type);
 		size_t midd_len = 9;
