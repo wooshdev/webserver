@@ -34,6 +34,7 @@ typedef enum HTTP_HANDLER_TYPE {
 typedef struct handler_fs_t {
 	/* working directory */
 	char *wdir;
+	char *charset;
 	/* (boolean) send modification date */
 	int send_mod;
 } handler_fs_t;

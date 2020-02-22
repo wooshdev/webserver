@@ -26,7 +26,7 @@ static const char *handler_options[] = {
 	/* general: */
 	"name", "type", "web-root", "overwrite-header",
 	/* fileserver specific: */
-	"directory", "send-modified"
+	"directory", "send-modified", "charset"
 };
 static const char *handler_types[] = { "NONE", "fileserver" };
 
@@ -119,8 +119,11 @@ int handle_setup(config_t main_config) {
 								if (!handler->data) {
 									printf("[Handler] Memory error on fileserver data creation! File name: \"%s\"!\n", component);
 								}
-								/* default settings: */
-								((handler_fs_t *)handler->data)->send_mod = 1;
+								/* default settings: */ {
+									handler_fs_t *fs = (handler_fs_t *) handler->data;
+									fs->send_mod = 1;
+									fs->charset = NULL;
+								}
 								break;
 							default:
 								printf("[Handler] Invalid handler type: '%s'! File name: %s\n", config.values[i], component);
@@ -186,6 +189,22 @@ int handle_setup(config_t main_config) {
 
 					handler_fs_t *fs = (handler_fs_t *) handler->data;
 					fs->send_mod = config_get_bool(config, "send-modified", 1);
+
+					break;
+				}
+				case 6: {/* "charset" */
+					if (handler->type != HTTP_HANDLER_TYPE_FILESERVER || !handler->data) {
+						printf("[Handler] The charset option can only be set on fileservers, not %ss! File name: \"%s\"\n", handler_types[handler->type], component);
+						goto error_all;
+					}
+
+					handler_fs_t *fs = (handler_fs_t *) handler->data;
+					free(fs->charset);
+					fs->charset = NULL;
+					if (config.values[i][0] != '0' && !(fs->charset = strdup(config.values[i]))) {
+						printf("[Handler] FileServerCharset MemoryError! Value: \"%s\". File name: \"%s\"\n", config.values[i], component);
+						goto error_all;
+					}
 
 					break;
 				}

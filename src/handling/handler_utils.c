@@ -43,3 +43,33 @@ static int header_write_date(http_response_headers_t *headers) {
 	free(date);
 	return i;
 }
+
+static void destroy_handler(http_handler_t *handler) {
+	if (handler->overwrite_header_count > 0) {
+		size_t i;
+		for (i = 0; i < handler->overwrite_header_count; i++) {
+			free(handler->overwrite_headers_names[i]);
+			free(handler->overwrite_headers_values[i]);
+		}
+		free(handler->overwrite_headers_names);
+		free(handler->overwrite_headers_values);
+	}
+
+	if (handler->data) {
+		switch (handler->type) {
+			case HTTP_HANDLER_TYPE_FILESERVER: {
+				handler_fs_t *fs = (handler_fs_t *) handler->data;
+				free(fs->charset);
+				free(fs->wdir);
+			} break;
+			default:
+				printf("\x1b[33m[Handlers] Warning: '%s' has unknown data with type %u!\n", handler->name, handler->type);
+				break;
+		}
+	}
+
+	free(handler->name);
+	free(handler->root);
+	free(handler->data);
+	free(handler);
+}

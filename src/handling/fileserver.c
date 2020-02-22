@@ -38,6 +38,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	struct stat *stat_buf = NULL;
 	char *fullpath = NULL;
 	char *file_last_modified = NULL;
+	char *mime_type = NULL;
 
 	http_response_t *response = malloc(sizeof(http_response_t));
 	if (!response)
@@ -124,12 +125,24 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 		return response;
 	}
 
-	const char *mime_type = mime_from_path(fullpath);
+	const char *temp_mime_type = mime_from_path(fullpath);
 	if (!mime_type) {
 		printf("[DEBUG] Unknown mime type for path: %s\n", fullpath);
 		mime_type = "application/octet-stream";
 	}
-	/* TODO add charsets: "text/html; charset=UTF-8"*/
+	if (fs->charset) {
+		const char *charset_middle = ";charset=";
+		size_t mime_len = strlen(temp_mime_type);
+		size_t midd_len = 9;
+		size_t char_len = strlen(fs->charset);
+		mime_type = malloc(mime_len + char_len + midd_len + 1);
+		memcpy(mime_type, temp_mime_type, mime_len);
+		memcpy(mime_type + mime_len, charset_middle, midd_len);
+		memcpy(mime_type + mime_len + midd_len, fs->charset, char_len);
+		mime_type[mime_len + midd_len + char_len] = 0;
+	} else {
+		mime_type = strdup(temp_mime_type);
+	}
 
 
 	file_last_modified = format_date(stat_buf->st_mtime);
@@ -239,6 +252,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	error_end:
 	if (response && response->headers)
 		http_response_headers_destroy(response->headers);
+	free(mime_type);
 	free(response);
 	close(fd);
 	free(file_last_modified);
