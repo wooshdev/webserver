@@ -126,9 +126,9 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	}
 
 	const char *temp_mime_type = mime_from_path(fullpath);
-	if (!mime_type) {
+	if (!temp_mime_type) {
 		printf("[DEBUG] Unknown mime type for path: %s\n", fullpath);
-		mime_type = "application/octet-stream";
+		temp_mime_type = "application/octet-stream";
 	}
 	if (fs->charset) {
 		const char *charset_middle = ";charset=";
