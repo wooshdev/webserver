@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 #include "http/header_parser.h"
-
 #include "utils/mime.h"
+#include "utils/util.h"
 
 char *create_full_path(const char *wdir, const char *path, const char *optional) {
 	size_t dir_length = strlen(wdir);
@@ -124,7 +124,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 		printf("[DEBUG] Unknown mime type for path: %s\n", fullpath);
 		temp_mime_type = "application/octet-stream";
 	}
-	if (fs->charset) {
+	if (fs->charset && strstartsw(temp_mime_type, "text/")) {
 		const char *charset_middle = ";charset=";
 		size_t mime_len = strlen(temp_mime_type);
 		size_t midd_len = 9;
@@ -204,7 +204,7 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	}
 
 	if (!header_write_date(response->headers) ||
-		!http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, mime_type) ||
+		(mime_type && !http_response_headers_add(response->headers, HTTP_RH_CONTENT_TYPE, mime_type)) ||
 		!http_response_headers_add(response->headers, HTTP_RH_SERVER, GLOBAL_SETTING_server_name) ||
 		(GLOBAL_SETTING_HEADER_sts && !http_response_headers_add(response->headers, HTTP_RH_STRICT_TRANSPORT_SECURITY, GLOBAL_SETTING_HEADER_sts)) ||
 		(GLOBAL_SETTING_HEADER_tk && !http_response_headers_add(response->headers, HTTP_RH_TK, GLOBAL_SETTING_HEADER_tk))) {
