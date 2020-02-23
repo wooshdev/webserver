@@ -34,7 +34,7 @@ char *create_full_path(const char *wdir, const char *path, const char *optional)
 }
 
 http_response_t *fs_handle(const char *path, http_handler_t *handler, http_header_list_t *request_headers, handler_callbacks_t *callbacks) {
-	int fd = 0;
+	int fd = -1;
 	struct stat *stat_buf = NULL;
 	char *fullpath = NULL;
 	char *file_last_modified = NULL;
@@ -248,7 +248,8 @@ http_response_t *fs_handle(const char *path, http_handler_t *handler, http_heade
 	response = NULL;
 
 	general_end:
-	close(fd);
+	if (fd != -1)
+		close(fd);
 	free(file_last_modified);
 	free(stat_buf);
 	free(mime_type);
